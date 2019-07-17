@@ -20,21 +20,29 @@ if test -f "$FILE"; then
         echo "key is: " $key
 
         # Functions for the parsed values
+        
+        function add_group {
+            groupadd -g $gid group$gid
+        }
         function add_user {
           # add functions for adding the user $user 
             PASS=$(date +%s | sha256sum | base64 | head -c 32) # 32 character randomized password to unlock the account
-            useradd $user -d $home -u $uid -g $gid -s $shell -p $(openssl passwd -1 $PASS)
+            useradd $user -d /home/$user -u $uid -g $gid -s $shell -p $(openssl passwd -1 $PASS)
         }
 
         function add_key {
             mkdir -p /home/$user/.ssh
             echo $key >> /home/$user/.ssh/authorized_keys
-            chown $user: -R /home/$user
+            chown $user -R /home/$user
             chmod 700 /home/$user/.ssh
             chmod 400 /home/$user/.ssh/authorized_keys
         }
 
         # Run the functions
+        echo "Adding group.."
+        add_group
+        echo 
+
         echo "Creating user.." 
         add_user
         echo

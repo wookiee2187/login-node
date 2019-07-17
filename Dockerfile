@@ -6,6 +6,8 @@ RUN \
 
 RUN \
   yum install -y openssh-server pwgen supervisor
+  
+RUN yum install openssl -y
 
 RUN ssh-keygen -t rsa -f /etc/ssh/ssh_host_rsa_key -N '' \
 && ssh-keygen -t dsa  -f /etc/ssh/ssh_host_dsa_key -N '' \
