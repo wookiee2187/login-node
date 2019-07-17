@@ -1,13 +1,13 @@
 apiVersion: v1
 kind: Pod
 metadata:
-  name: working-pod3-15
+  name: working-pod3-21
 spec:
   containers:
     - name: new-container
       env:
        - name: PASSWDFILE
-         value: "/root/tconfig-file.conf"
+         value: "root/tconfig-file.conf"
       image: nlingareddy/ssh-login-node
       volumeMounts:
         - name: config-vol
@@ -15,9 +15,9 @@ spec:
           subPath: tconfig-file.conf  
       command: ["/bin/sh", "-c"]
       args:
-        -  echo $PASSWDFILE >> pass.conf;
-           vi pass.conf +w +q;
-           ./config/init/new.sh pass.conf;
+        -  cp $PASSWDFILE pas.conf;
+           vi pas.conf +w +q;
+           ./config/init/new.sh pas.conf;
            tail -f /dev/null; 
   volumes:
     - name: config-vol 
