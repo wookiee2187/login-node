@@ -35,7 +35,7 @@ if test -f "$FILE"; then
             echo $key >> /home/$user/.ssh/authorized_keys
             chown $user -R /home/$user
             chmod 700 /home/$user/.ssh
-            chmod 400 /home/$user/.ssh/authorized_keys
+            chmod 600 /home/$user/.ssh/authorized_keys
         }
 
         # Run the functions
