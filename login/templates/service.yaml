@@ -9,4 +9,4 @@ spec:
     app.kubernetes.io/instance: {{ .Release.Name }}
   ports:
   - protocol: TCP
-    port: 22
+    port: {{ .Values.service.port }}
