@@ -20,9 +20,9 @@ spec:
         app.kubernetes.io/instance: {{ .Release.Name }}
     spec:
       volumes:
-      - name: config-vol
+      - name: {{ include "login.name" . }}-config
         configMap:
-          name: new2-config
+          name: PASSWDFILE
           items:
            - key: tconfig-file.conf
              path: tconfig-file.conf
@@ -31,8 +31,8 @@ spec:
           env:
            - name: PASSWDFILE
              value: "root/tconfig-file.conf"
-             image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           volumeMounts:
-            - name: config-vol
+            - name: {{ include "login.name" . }}-config
               mountPath:  /root/tconfig-file.conf
               subPath: tconfig-file.conf
