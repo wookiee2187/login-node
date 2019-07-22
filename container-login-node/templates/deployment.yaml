@@ -31,7 +31,7 @@ spec:
           env:
            - name: PASSWDFILE
              value: "root/tconfig-file.conf"
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          image: "slate-ci/login-node"
           volumeMounts:
             - name: {{ include "login.name" . }}-config
               mountPath:  /root/tconfig-file.conf
