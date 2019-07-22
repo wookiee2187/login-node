@@ -6,3 +6,4 @@ image:
 service:
   type: NodePort
   port: 22
+  annotations: login-service

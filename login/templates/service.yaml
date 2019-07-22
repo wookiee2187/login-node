@@ -1,11 +1,11 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ include "login.fullname" . }}
+  name: login-service
 spec:
   type: {{ .Values.service.type }}
   selector:
-    app.kubernetes.io/name: {{ include "hello-world.name" . }}
+    app.kubernetes.io/name: login-service
     app.kubernetes.io/instance: {{ .Release.Name }}
   ports:
   - protocol: TCP
