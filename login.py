@@ -5,6 +5,7 @@ def main():
     config.load_kube_config()
     k8s_client = client.ApiClient()
     utils.create_from_yaml(k8s_client, "deployNservice.yaml")
+    utils.create_from_yaml(k8s_client, "tconfig.yaml")
     k8s_api = client.ExtensionsV1beta1Api(k8s_client)
     print("Deployment created")
 

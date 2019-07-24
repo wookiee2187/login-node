@@ -17,7 +17,7 @@ spec:
       volumes:
       - name: config-vol 
         configMap: 
-          name: new2-config
+          name: new-config
           items: 
            - key: tconfig-file.conf
              path: tconfig-file.conf
