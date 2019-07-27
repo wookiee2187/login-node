@@ -13,18 +13,16 @@ def main():
     utils.create_from_yaml(k8s_client, "deployNservice.yaml")
     utils.create_from_yaml(k8s_client, "tconfig.yaml")
     k8s_api = client.ExtensionsV1beta1Api(k8s_client)        	
-    deps = k8s_api.read_namespaced_deployment(name 
+    deps = k8s_api.read_namespaced_deployment_status(name 
     = "login-node-n", namespace ="default")
-    pod = v1.read_namespaced_pod(name = MY_POD_NAME, namespace = "default")
     pp = pprint.PrettyPrinter(indent =4)
-    pp.pprint(deps.status)
-    pp.pprint(pod)
-    print(deps.status.available_replicas)
-    passwd = os.getenv("PASSWDFILE")
+#    pp.pprint(deps)
+#    print(deps.status.available_replicas)
     while(deps.status.available_replicas != 1):
-        #print(pod_ip)
-        #print(node_name)
-    	print("Deployment not created")
+        k8s_api = client.ExtensionsV1beta1Api(k8s_client)
+        deps = k8s_api.read_namespaced_deployment_status(name
+        = "login-node-n", namespace ="default")
+    print("DEPLOYMENT CREATED")
 
 if __name__ == '__main__':
     main()
