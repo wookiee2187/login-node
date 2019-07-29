@@ -4,6 +4,7 @@ import os, sys
 import pprint 
 import time
 import subprocess
+from flask import Flask, render_template
 
 def main():
     config.load_kube_config()
@@ -36,6 +37,6 @@ def main():
     pod = list_pods.items[0]
     node = v1.read_node(pod.spec.node_name)
     pp.pprint(node.status.addresses[0].address)
-
+    render_template('condor_config.local.j2', request_name = "request", inventory_hostname = "hostname")
 if __name__ == '__main__':
     main()

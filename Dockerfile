@@ -25,6 +25,7 @@ RUN mkdir -p /var/lib/condor/credentials
 
 # Configuration
 COPY worker.conf /etc/condor/config.d/
+COPY condor_config.local.j2 /etc/condor/config.d/
 
 RUN \
   sed -ri 's/^HostKey\ \/etc\/ssh\/ssh_host_ed25519_key/#HostKey\ \/etc\/ssh\/ssh_host_ed25519_key/g' /etc/ssh/sshd_config && \
