@@ -29,11 +29,11 @@ spec:
            - name: MY_POD_NAME
              valueFrom: 
              fieldRef:
-               fieldPath: items[0].metadata.name
+               fieldPath: .items[0].metadata.name
            - name: MY_POD_NAMESPACE
              valueFrom:  
              fieldRef:
-               fieldPath: items[0].metadata.namespace
+               fieldPath: .items[0].metadata.namespace
           image: nlingareddy/ssh-login-node
           volumeMounts:
             - name: config-vol
