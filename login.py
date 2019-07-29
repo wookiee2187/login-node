@@ -3,8 +3,6 @@ from kubernetes import client, config, utils
 import os, sys
 import pprint 
 import time
-from pyhelm.chartbuilder import ChartBuilder 
-from pyhelm.tiller import Tiller 
 import subprocess
 
 def main():
