@@ -12,15 +12,22 @@ def main():
     v1 = client.CoreV1Api()
     k8s_client = client.ApiClient()
     k8s_api = client.ExtensionsV1beta1Api(k8s_client)
+    pp = pprint.PrettyPrinter(indent =4)
     check = k8s_api.read_namespaced_deployment_status(name
     = "login-node-n", namespace ="default")
     if check != None:
+        serv = v1.read_namespaced_service(name = "login-node-service", namespace = "default")
+        pp.pprint(serv.spec.ports[0].node_port)
+        bashcmd ="(kubectl get pod -l app=login-node-n -o jsonpath='{.items[0].metadata.name}')"
+        pod_name2 = subprocess.check_output(bashcmd, shell=True)
+        podsy = v1.read_namespaced_pod(pod_name2,"default")
+        nodey = v1.read_node(podsy.spec.node_name)
+        pp.pprint(nodey.status.addresses[0].address)
         sys.exit(0)
     utils.create_from_yaml(k8s_client, "deployNservice.yaml")
     utils.create_from_yaml(k8s_client, "tconfig.yaml")
     deps = k8s_api.read_namespaced_deployment_status(name 
     = "login-node-n", namespace ="default")
-    pp = pprint.PrettyPrinter(indent =4)
     while(deps.status.available_replicas != 1):
         k8s_api = client.ExtensionsV1beta1Api(k8s_client)
         deps = k8s_api.read_namespaced_deployment_status(name
