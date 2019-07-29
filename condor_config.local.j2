@@ -1,0 +1,113 @@
+COLLECTOR_NAME = {{ request_name }}_collector
+CONDOR_HOST = {{ inventory_hostname }}
+
+ALLOW_ADMINISTRATOR = $(CONDOR_HOST), $(FULL_HOSTNAME), $(IP_ADDRESS)
+
+DAEMON_LIST = MASTER, COLLECTOR, SCHEDD, NEGOTIATOR
+
+USE_SHARED_PORT = true
+
+# Turn off UW spyware
+CONDOR_DEVELOPERS           = NONE
+CONDOR_DEVELOPERS_COLLECTOR = NONE
+
+UID_DOMAIN = virtualclusters.org
+TRUST_UID_DOMAIN = TRUE
+
+# Increase the size of the logs we write to
+MAX_COLLECTOR_LOG        = 256000000
+MAX_NEGOTIATOR_LOG       = 256000000
+MAX_NEGOTIATOR_MATCH_LOG = 256000000
+MAX_SCHEDD_LOG           = 256000000
+MAX_STARTD_LOG           = 256000000
+MAX_STARTER_LOG          = 256000000
+MAX_SHADOW_LOG           = 256000000
+
+# Some security changes
+#SEC_DEFAULT_AUTHENTICATION = OPTIONAL
+#SEC_DEFAULT_AUTHENTICATION_METHODS = FS,CLAIMTOBE
+#SEC_ENABLE_MATCH_PASSWORD_AUTHENTICATION = TRUE
+
+# Number of workers to fork for queries
+COLLECTOR_QUERY_WORKERS = 16
+
+# Improve condor_q performance
+SCHEDD_QUERY_WORKERS = 10
+
+NETWORK_INTERFACE = $(CONDOR_HOST)
+
+VC3_FACTORIES = apf.virtualclusters.org, apf-test.virtualclusters.org, apf-prod.virtualclusters.org
+
+ALLOW_ADMINISTRATOR = $(FLOCK_FROM), $(CONDOR_HOST), $(UCHICAGO_SCIDMZ_MWT2)
+ALLOW_CONFIG = root@$(CONDOR_HOST)/$(IP_ADDRESS)
+ALLOW_DAEMON = $(FLOCK_FROM), $(CONDOR_HOST), condor_pool@*
+ALLOW_WRITE  = $(FLOCK_FROM), $(CONDOR_HOST), condor_pool@*
+ALLOW_READ   = $(FLOCK_FROM), $(CONDOR_HOST), $(VC3_FACTORIES), condor_pool@*
+
+
+# Setup the defrag daemon
+DAEMON_LIST                       = $(DAEMON_LIST), DEFRAG
+
+# Only choose partionable nodes with 8 or more cpus
+DEFRAG_REQUIREMENTS               = ( PartitionableSlot && ( TotalCpus >= 8 ) )
+
+# Nodes are done draining when they have 8+ free cpus available
+#DEFRAG_CANCEL_REQUIREMENTS        = ( PartitionableSlot && ( ( Cpus >= 8 ) ) )
+#DEFRAG_CANCEL_REQUIREMENTS        = ( PartitionableSlot && ( ( Cpus >= 8 ) || ((Cpus <= 4) && ($(StateTimer) > (1 * $(HOUR))) ) || ((Cpus <= 7) && ($(StateTimer) > (2 * $(HOUR)))) ) )
+DEFRAG_CANCEL_REQUIREMENTS        =                                                     \
+        ( PartitionableSlot &&                                                          \
+                ( ( Cpus >= 8 ) ||                                                      \
+                        ( (Cpus <= 2) && ($(StateTimer) > ( 4 * $(HOUR))) ) ||          \
+                        ( (Cpus <= 4) && ($(StateTimer) > ( 8 * $(HOUR))) ) ||          \
+                        ( (Cpus <= 6) && ($(StateTimer) > (12 * $(HOUR))) ) ||          \
+                        ( (Cpus <= 8) && ($(StateTimer) > (24 * $(HOUR))) )             \
+                )                                                                       \
+        )
+
+# What do we believe is a whole machine
+DEFRAG_WHOLE_MACHINE_EXPR         = ( PartitionableSlot && ( Cpus >= 8 ) )
+
+# Chose the node with the highest number of cpus first
+DEFRAG_RANK                       = ( TotalCpus )
+
+# Evalute the policy every 5 minutes
+DEFRAG_INTERVAL                   = ( 5 * $(MINUTE) )
+
+# Number of machine to drain each hour (must be > 0)
+DEFRAG_DRAINING_MACHINES_PER_HOUR = 60.0
+
+# Maximum number of concurrent drainging (unlimited = -1)
+DEFRAG_MAX_CONCURRENT_DRAINING    = 10
+
+# Maximum number of whole machines to have in cluster (unlimited = -1)
+DEFRAG_MAX_WHOLE_MACHINES         = -1
+
+# How quick do we kick out jobs (graceful, quick, fast)
+DEFRAG_SCHEDULE                   = graceful
+
+# Negotiate a bit faster than normal
+NEGOTIATOR_INTERVAL               = 60
+
+# If False, the slot will avoid the Matched state
+NEGOTIATOR_INFORM_STARTD          = True
+
+# 1 day half life on the priority recalculation
+#PRIORITY_HALFLIFE                 = 86400
+
+# 4 hour half life on the priority recalculation
+PRIORITY_HALFLIFE                 = 14400
+
+# Honor job priority across all SCHEDD
+USE_GLOBAL_JOB_PRIOS              = True
+
+# Make flocked in jobs get the same EUP as local jobs
+REMOTE_PRIO_FACTOR                = 1.0
+
+UCHICAGO_SCIDMZ_MWT2 = 192.170.226.0/23, 192.170.231.0/26
+
+SEC_DEFAULT_AUTHENTICATION = PREFERRED
+SEC_DEFAULT_AUTHENTICATION_METHODS = FS, PASSWORD
+SEC_DEFAULT_ENCRYPTION = OPTIONAL
+SEC_DEFAULT_INTEGRITY = OPTIONAL
+SEC_ENABLE_MATCH_PASSWORD_AUTHENTICATION = TRUE
+SEC_PASSWORD_FILE = /etc/condor/condor_password

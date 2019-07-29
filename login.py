@@ -36,5 +36,6 @@ def main():
     pod = list_pods.items[0]
     node = v1.read_node(pod.spec.node_name)
     pp.pprint(node.status.addresses[0].address)
+
 if __name__ == '__main__':
     main()

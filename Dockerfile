@@ -5,7 +5,8 @@ RUN \
   yum install -y epel-release
 
 RUN \
-  yum install -y openssh-server pwgen supervisor
+  yum install -y openssh-server pwgen supervisor \
+  condor
   
 RUN yum install openssl -y
 
@@ -19,6 +20,11 @@ RUN \
   sed -i -r 's/.?PasswordAuthentication.+/PasswordAuthentication no/' /etc/ssh/sshd_config && \
   sed -i -r 's/.?ChallengeResponseAuthentication.+/ChallengeResponseAuthentication no/' /etc/ssh/sshd_config && \
   sed -i -r 's/.?PermitRootLogin.+/PermitRootLogin no/' /etc/ssh/sshd_config
+
+RUN mkdir -p /var/lib/condor/credentials
+
+# Configuration
+COPY worker.conf /etc/condor/config.d/
 
 RUN \
   sed -ri 's/^HostKey\ \/etc\/ssh\/ssh_host_ed25519_key/#HostKey\ \/etc\/ssh\/ssh_host_ed25519_key/g' /etc/ssh/sshd_config && \
@@ -38,4 +44,5 @@ RUN \
 
 ADD container-files /
 
-ENTRYPOINT ["/config/bootstrap.sh"]
+ENTRYPOINT chown -R condor: /var/lib/condor && \
+           /usr/bin/supervisord -c /etc/supervisord.conf && \ ["/config/bootstrap.sh"]
