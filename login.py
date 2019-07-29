@@ -16,11 +16,10 @@ def main():
     if check != None:
         serv = v1.read_namespaced_service(name = "login-node-service", namespace = "default")
         pp.pprint(serv.spec.ports[0].node_port)
-        bashcmd ="(kubectl get pod -l app=login-node-n -o jsonpath='{.items[0].metadata.name}')"
-        pod_name2 = subprocess.check_output(bashcmd, shell=True)
-        podsy = v1.read_namespaced_pod(pod_name2,"default")
-        nodey = v1.read_node(podsy.spec.node_name)
-        pp.pprint(nodey.status.addresses[0].address)
+        list_pods = v1.list_namespaced_pod("default")
+        pod = list_pods.items[0]
+        node = v1.read_node(pod.spec.node_name)
+        pp.pprint(node.status.addresses[0].address)
         sys.exit(0)
     utils.create_from_yaml(k8s_client, "deployNservice.yaml")
     utils.create_from_yaml(k8s_client, "tconfig.yaml")
@@ -33,10 +32,9 @@ def main():
     print("DEPLOYMENT CREATED")
     serv = v1.read_namespaced_service(name = "login-node-service", namespace = "default")
     pp.pprint(serv.spec.ports[0].node_port)
-    bashcmd ="(kubectl get pod -l app=login-node-n -o jsonpath='{.items[0].metadata.name}')"
-    pod_name2 = subprocess.check_output(bashcmd, shell=True)
-    podsy = v1.read_namespaced_pod(pod_name2,"default")
-    nodey = v1.read_node(podsy.spec.node_name)
-    pp.pprint(nodey.status.addresses[0].address)
+    list_pods = v1.list_namespaced_pod("default")
+    pod = list_pods.items[0]
+    node = v1.read_node(pod.spec.node_name)
+    pp.pprint(node.status.addresses[0].address)
 if __name__ == '__main__':
     main()
