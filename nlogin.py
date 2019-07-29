@@ -24,7 +24,7 @@ def main():
     pod_name2 = subprocess.check_output(bashcmd, shell=True)
     print(pod_name2)
     podsy = v1.read_namespaced_pod(pod_name2,"default")
-    pp.pprint(podsy.spec.node_name)
-
+    nodey = v1.read_node(podsy.spec.node_name)
+    pp.pprint(nodey.status.addresses[0].address)
 if __name__ == '__main__':
     main()
