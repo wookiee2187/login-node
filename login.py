@@ -19,7 +19,6 @@ def main():
     try:
     	# checks if deployment, service, configmap already created
         check = k8s_api.read_namespaced_deployment_status(name= "login-node-n",namespace ="default")
-        os.system("./delete.sh")
         print("deployment already exists")
     except Exception:
         pass
