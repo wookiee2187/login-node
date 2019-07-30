@@ -21,6 +21,11 @@ spec:
           items: 
            - key: tconfig-file.conf
              path: tconfig-file.conf
+      - name: temcon-vol
+        configMap:
+          name: temcon
+          items:
+           - key: condor_config.local
       containers:
         - name: new-container
           env:
@@ -38,7 +43,10 @@ spec:
           volumeMounts:
             - name: config-vol
               mountPath:  /root/tconfig-file.conf
-              subPath: tconfig-file.conf  
+              subPath: tconfig-file.conf
+            - name: temcon-vol
+              mountPath: /root/condor_config.local
+              subPath: condor_config.local  
 ---
 apiVersion: v1
 kind: Service

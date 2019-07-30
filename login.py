@@ -1,5 +1,7 @@
 #creates pod with login-node image
 from kubernetes import client, config, utils
+import kubernetes.client
+from kubernetes.client.rest import ApiException
 import os, sys
 import pprint 
 import time
@@ -44,5 +46,18 @@ def main():
     f = open("condor_config.local","w+")
     f.write(temp_up)
     f.close()
+    name = 'example'
+    namespace = 'default'
+    body = kubernetes.client.V1ConfigMap()
+    body.data = dict([("condor_config.local" ,temp_up)]) 
+    body.metadata = kubernetes.client.V1ObjectMeta()
+    body.metadata.name = name 
+    configuration = kubernetes.client.Configuration()
+    api_instance = kubernetes.client.CoreV1Api(kubernetes.client.ApiClient(configuration))
+    try: 
+        api_response = api_instance.create_namespaced_config_map(namespace, body)
+        pp.pprint(api_response)
+    except ApiException as e:
+        print("Exception when calling CoreV1Api->create_namespaced_config_map: %s\n" % e)
 if __name__ == '__main__':
     main()
