@@ -3,8 +3,10 @@ from kubernetes import client, config, utils
 import os, sys
 import pprint 
 import time
-import subprocess
-from flask import Flask, render_template
+import subprocess, yaml
+from flask import Flask, flash, redirect, render_template, request
+from random import randint
+from jinja2 import Environment, FileSystemLoader
 
 def main():
     config.load_kube_config()
@@ -12,31 +14,35 @@ def main():
     k8s_client = client.ApiClient()
     k8s_api = client.ExtensionsV1beta1Api(k8s_client)
     pp = pprint.PrettyPrinter(indent =4)
-    check = k8s_api.read_namespaced_deployment_status(name
-    = "login-node-n", namespace ="default")
-    if check != None:
-        serv = v1.read_namespaced_service(name = "login-node-service", namespace = "default")
-        pp.pprint(serv.spec.ports[0].node_port)
-        list_pods = v1.list_namespaced_pod("default")
-        pod = list_pods.items[0]
-        node = v1.read_node(pod.spec.node_name)
-        pp.pprint(node.status.addresses[0].address)
-        sys.exit(0)
-    utils.create_from_yaml(k8s_client, "deployNservice.yaml")
-    utils.create_from_yaml(k8s_client, "tconfig.yaml")
-    deps = k8s_api.read_namespaced_deployment_status(name 
-    = "login-node-n", namespace ="default")
-    while(deps.status.available_replicas != 1):
-        k8s_api = client.ExtensionsV1beta1Api(k8s_client)
-        deps = k8s_api.read_namespaced_deployment_status(name
-        = "login-node-n", namespace ="default")
-    print("DEPLOYMENT CREATED")
+    try:
+    	# checks if deployment, service, configmap already created
+        check = k8s_api.read_namespaced_deployment_status(name= "login-node-n",namespace ="default")
+    except Exception:
+        pass
+        #creating deployment, service, and configmap 
+        utils.create_from_yaml(k8s_client, "deployNservice.yaml")
+        utils.create_from_yaml(k8s_client, "tconfig.yaml")
+        # waits till deployment created
+        deps = k8s_api.read_namespaced_deployment_status(name = "login-node-n", namespace ="default")
+        while(deps.status.available_replicas != 1):
+            k8s_api = client.ExtensionsV1beta1Api(k8s_client)
+            deps = k8s_api.read_namespaced_deployment_status(name= "login-node-n", namespace ="default")
+        print("DEPLOYMENT CREATED")
+    #prints service port and IP address
     serv = v1.read_namespaced_service(name = "login-node-service", namespace = "default")
     pp.pprint(serv.spec.ports[0].node_port)
     list_pods = v1.list_namespaced_pod("default")
     pod = list_pods.items[0]
     node = v1.read_node(pod.spec.node_name)
     pp.pprint(node.status.addresses[0].address)
-    render_template('condor_config.local.j2', request_name = "request", inventory_hostname = "hostname")
+    # rendering template and creating configmap
+    config_data = yaml.load(open('vals.yaml'),Loader=yaml.FullLoader)
+    #itemp_up = render_template('condor_config.local.j2', request_name = "request",inventory_hostname = "hostname")
+    env = Environment(loader = FileSystemLoader('./templates'), trim_blocks=True, lstrip_blocks=True)
+    template = env.get_template('condor_config.local.j2')
+    temp_up = template.render(config_data)
+    f = open("condor_config.local","w+")
+    f.write(temp_up)
+    f.close()
 if __name__ == '__main__':
     main()
