@@ -19,8 +19,27 @@ def main():
     try:
     	# checks if deployment, service, configmap already created
         check = k8s_api.read_namespaced_deployment_status(name= "login-node-n",namespace ="default")
+        print("deployment already exists")
     except Exception:
         pass
+        # rendering template and creating configmap
+        config_data = yaml.load(open('vals.yaml'),Loader=yaml.FullLoader)
+        #itemp_up = render_template('condor_config.local.j2', request_name = "request",inventory_hostname = "hostname")
+        env = Environment(loader = FileSystemLoader('./templates'), trim_blocks=True, lstrip_blocks=True)
+        template = env.get_template('condor_config.local.j2')
+        temp_up = template.render(config_data)
+        name = 'temcon'
+        namespace = 'default'
+        body = kubernetes.client.V1ConfigMap()
+        body.data = dict([("condor_config.local" ,temp_up)])
+        body.metadata = kubernetes.client.V1ObjectMeta()
+        body.metadata.name = name
+        configuration = kubernetes.client.Configuration()
+        api_instance = kubernetes.client.CoreV1Api(kubernetes.client.ApiClient(configuration))
+        try:
+            api_response = api_instance.create_namespaced_config_map(namespace, body)
+        except ApiException as e:
+            print("Exception when calling CoreV1Api->create_namespaced_config_map: %s\n" % e)
         #creating deployment, service, and configmap 
         utils.create_from_yaml(k8s_client, "deployNservice.yaml")
         utils.create_from_yaml(k8s_client, "tconfig.yaml")
@@ -30,34 +49,11 @@ def main():
             k8s_api = client.ExtensionsV1beta1Api(k8s_client)
             deps = k8s_api.read_namespaced_deployment_status(name= "login-node-n", namespace ="default")
         print("DEPLOYMENT CREATED")
-    #prints service port and IP address
     serv = v1.read_namespaced_service(name = "login-node-service", namespace = "default")
     pp.pprint(serv.spec.ports[0].node_port)
     list_pods = v1.list_namespaced_pod("default")
     pod = list_pods.items[0]
     node = v1.read_node(pod.spec.node_name)
     pp.pprint(node.status.addresses[0].address)
-    # rendering template and creating configmap
-    config_data = yaml.load(open('vals.yaml'),Loader=yaml.FullLoader)
-    #itemp_up = render_template('condor_config.local.j2', request_name = "request",inventory_hostname = "hostname")
-    env = Environment(loader = FileSystemLoader('./templates'), trim_blocks=True, lstrip_blocks=True)
-    template = env.get_template('condor_config.local.j2')
-    temp_up = template.render(config_data)
-    f = open("condor_config.local","w+")
-    f.write(temp_up)
-    f.close()
-    name = 'example'
-    namespace = 'default'
-    body = kubernetes.client.V1ConfigMap()
-    body.data = dict([("condor_config.local" ,temp_up)]) 
-    body.metadata = kubernetes.client.V1ObjectMeta()
-    body.metadata.name = name 
-    configuration = kubernetes.client.Configuration()
-    api_instance = kubernetes.client.CoreV1Api(kubernetes.client.ApiClient(configuration))
-    try: 
-        api_response = api_instance.create_namespaced_config_map(namespace, body)
-        pp.pprint(api_response)
-    except ApiException as e:
-        print("Exception when calling CoreV1Api->create_namespaced_config_map: %s\n" % e)
 if __name__ == '__main__':
     main()

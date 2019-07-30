@@ -26,26 +26,19 @@ spec:
           name: temcon
           items:
            - key: condor_config.local
+             path: condor_config.local
       containers:
         - name: new-container
           env:
            - name: PASSWDFILE
              value: "root/tconfig-file.conf"
-           - name: MY_POD_NAME
-             valueFrom: 
-             fieldRef:
-               fieldPath: .items[0].metadata.name
-           - name: MY_POD_NAMESPACE
-             valueFrom:  
-             fieldRef:
-               fieldPath: .items[0].metadata.namespace
           image: nlingareddy/ssh-login-node
           volumeMounts:
             - name: config-vol
               mountPath:  /root/tconfig-file.conf
               subPath: tconfig-file.conf
             - name: temcon-vol
-              mountPath: /root/condor_config.local
+              mountPath: /etc/condor/config.d/condor_config.local
               subPath: condor_config.local  
 ---
 apiVersion: v1
