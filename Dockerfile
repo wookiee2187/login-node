@@ -42,5 +42,4 @@ RUN \
 
 ADD container-files /
 
-ENTRYPOINT ["/config/bootstrap.sh"] && \ 
-           chown -R condor: /var/lib/condor 
+ENTRYPOINT ["/config/bootstrap.sh"]  

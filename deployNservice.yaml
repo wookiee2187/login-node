@@ -32,7 +32,7 @@ spec:
           env:
            - name: PASSWDFILE
              value: "root/tconfig-file.conf"
-          image: nlingareddy/ssh-login-node
+          image: nlingareddy/condor-login
           volumeMounts:
             - name: config-vol
               mountPath:  /root/tconfig-file.conf
