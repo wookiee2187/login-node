@@ -23,9 +23,6 @@ RUN \
 
 RUN mkdir -p /var/lib/condor/credentials
 
-# Configuration
-COPY worker.conf /etc/condor/config.d/
-COPY condor_config.local.j2 /etc/condor/config.d/
 
 RUN \
   sed -ri 's/^HostKey\ \/etc\/ssh\/ssh_host_ed25519_key/#HostKey\ \/etc\/ssh\/ssh_host_ed25519_key/g' /etc/ssh/sshd_config && \
@@ -45,5 +42,5 @@ RUN \
 
 ADD container-files /
 
-ENTRYPOINT chown -R condor: /var/lib/condor && \
-           /usr/bin/supervisord -c /etc/supervisord.conf && \ ["/config/bootstrap.sh"]
+ENTRYPOINT ["/config/bootstrap.sh"] && \ 
+           chown -R condor: /var/lib/condor 
