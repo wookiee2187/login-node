@@ -44,6 +44,8 @@ class HandleHeadNodes(VC3Task):
 
         #creating OpenStack client 
         #self.nova = novaclient.Client( **nova_conf );
+
+	# loading kubernetes cluster,providing easy access to the API
     	config.load_kube_config()
     	self.v1 = client.CoreV1Api()
     	self.k8s_client = client.ApiClient()
@@ -83,6 +85,7 @@ class HandleHeadNodes(VC3Task):
         self.log.debug("HandleHeadNodes VC3Task initialized.")
 
     def login_info(self, request):
+	#outputs login pod info with node IP, port, deployment, service, configmap1, configmap2 
 	#check if pod exists with k8s python api 
 	try:
 	    dep = self.v1.read_namespaced_deployment(name = "login-node-n" + "-" + request.name, namespace = "default")
@@ -111,6 +114,7 @@ class HandleHeadNodes(VC3Task):
         	env = Environment(loader = FileSystemLoader('./templates'), trim_blocks=True, lstrip_blocks=True)
        		template = env.get_template('condor_config.local.j2')
         	temp_up = template.render(config_data)
+
         	name = 'temcon'+ '-' + request.name
        		namespace = 'default'
         	body = kubernetes.client.V1ConfigMap()
@@ -123,17 +127,21 @@ class HandleHeadNodes(VC3Task):
             		api_response = api_instance.create_namespaced_config_map(namespace, body)
         	except ApiException as e:
             		print("Exception when calling CoreV1Api->create_namespaced_config_map: %s\n" % e)
+
         	#creating deployment, service, and configmap 
-		utils.create_from_yaml(k8s_client, "deployNservice.yaml")
 		# To do - change name to have the deployment name as the name + request.name
+		utils.create_from_yaml(k8s_client, "deployNservice.yaml")
         	utils.create_from_yaml(k8s_client, "tconfig.yaml")
+		
 		# waits till deployment created
 		deps = k8s_api.read_namespaced_deployment_status(name = "login-node-n", namespace ="default")
        		while(deps.status.available_replicas != 1):
             		k8s_api = client.ExtensionsV1beta1Api(k8s_client)
             		deps = k8s_api.read_namespaced_deployment_status(name= "login-node-n", namespace ="default")
         	self.log.info("LOGIN POD CREATED")
-                deps.metadata.name = deps.metadata.name + "-" + request.name
+                
+		#changes name of deployment, service, configmap1 based on request name
+		deps.metadata.name = deps.metadata.name + "-" + request.name
 		service = self.v1.read_namespaced_service(name = "login-node-service", namespace = "default")
 		service.metadata.name = service.metadata.name + "-" + request.name
 		config1 = self.api_instance.read_namespaced_config_map(name = "new-config", namespace = "default") 
