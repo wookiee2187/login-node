@@ -29,8 +29,6 @@ class HandleHeadNodes(VC3Task):
 
     def __init__(self, parent, config, section):
         super(HandleHeadNodes, self).__init__(parent, config, section)
-#	self.log("INITIALIZING PRINT")
-	print("INITIALIZING PRINT")
         self.client = parent.client
         self.config = config 
         self.node_prefix           = self.config.get(section, 'node_prefix')
@@ -65,7 +63,6 @@ class HandleHeadNodes(VC3Task):
     def login_info(self, request):
 	#outputs login pod info with node IP, port, deployment, service, configmap1, configmap2 
 	#check if pod exists with k8s python api 
-#       kubernetes.config.load_kube_config()
 	config.load_kube_config()
         v1 = client.CoreV1Api()
         k8s_client = client.ApiClient()
@@ -95,7 +92,7 @@ class HandleHeadNodes(VC3Task):
         configuration = kubernetes.client.Configuration()
         api_instance = kubernetes.client.CoreV1Api(kubernetes.client.ApiClient(configuration))
         try:
-        	# checks if deployment, service, configmap already created - To do add checks for service + configmaps
+            # checks if deployment, service, configmap already created - To do add checks for service + configmaps
             check = k8s_api.read_namespaced_deployment_status(name= "login-node-n" + "-" + request.name, namespace ="default")
             self.log.info("pod already exists")
         except Exception:
@@ -118,19 +115,19 @@ class HandleHeadNodes(VC3Task):
             api_response = api_instance.create_namespaced_config_map(namespace, body)
         except ApiException as e:
             print("Exception when calling CoreV1Api->create_namespaced_config_map: %s\n" % e)
-        #creating deployment, service, and configmap 
-		# To do - change name to have the deployment name as the name + request.name
+        
+	#creating deployment, service, and configmap 
+	# To do - change name to have the deployment name as the name + request.name
         utils.create_from_yaml(k8s_client, "deployNservice.yaml")
-        utils.create_from_yaml(k8s_client, "tconfig.yaml")
-		
-		# waits till deployment created
+        utils.create_from_yaml(k8s_client, "tconfig.yaml")	
+	# waits till deployment created
         deps = k8s_api.read_namespaced_deployment_status(name = "login-node-n", namespace ="default")
         while(deps.status.available_replicas != 1):
             k8s_api = client.ExtensionsV1beta1Api(k8s_client)
             deps = k8s_api.read_namespaced_deployment_status(name= "login-node-n", namespace ="default")
             self.log.info("LOGIN POD CREATED")
                 
-		#changes name of deployment, service, configmap1 based on request name
+	#changes name of deployment, service, configmap1 based on request name
         deps.metadata.name = deps.metadata.name + "-" + request.name
         service = v1.read_namespaced_service(name = "login-node-service", namespace = "default")
         service.metadata.name = service.metadata.name + "-" + request.name
