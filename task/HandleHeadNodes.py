@@ -47,8 +47,8 @@ class HandleHeadNodes(VC3Task):
         self.ansible_path       = os.path.expanduser(self.config.get(section, 'ansible_path'))
         self.ansible_playbook   = self.config.get(section, 'ansible_playbook')
 
-      #  self.ansible_debug_file = os.path.expanduser(self.config.get(section, 'ansible_debug_file')) # temporary for debug, only works for one node at a time
-      #  self.ansible_debug      = open(self.ansible_debug_file, 'a')
+        self.ansible_debug_file = os.path.expanduser(self.config.get(section, 'ansible_debug_file')) # temporary for debug, only works for one node at a time
+        self.ansible_debug      = open(self.ansible_debug_file, 'a')
 
         groups = self.config.get(section, 'node_security_groups')
         self.node_security_groups = groups.split(',')

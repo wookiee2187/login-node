@@ -1,14 +1,11 @@
 #!/bin/bash
 set -e
-#Start the container
-sudo docker run -v $(pwd)/tasks.conf:/etc/vc3/tasks.conf -v $(pwd)/task/HandleHeadNodes.py:/usr/lib/python2.7/site-packages/vc3master/plugins/task/HandleHeadNodes.py --rm --name vc3 virtualclusters/omnicontainer
-echo "sleep 60s for startup..."
-sleep 10
 
 vc3client='sudo docker exec vc3 vc3-client'
 
 
 # create the resource
+$vc3client nodeinfo-create --owner lincolnb  --displayname="Generic node size, 1core,1GB,1GB" --cores 4 --memory_mb 1000 --storage_mb 1000 generic-nodesize
 $vc3client resource-create --owner lincolnb --accesstype batch --accessmethod ssh --accessflavor condor --accesshost slate-micro-condor.slateci.io --accessport 22 --node generic-nodesize --description "SLATE CI" --displayname "SLATE" --url "https://slatecio.io" --pubtokendocurl "https://slateci.io" --organization "SLATECI" slate-condor --public
 
 
@@ -28,8 +25,4 @@ $vc3client nodeset-create --owner lincolnb --node_number 1 --app_type htcondor -
 $vc3client cluster-create --owner lincolnb --description "htcondor" --displayname="htcondor" lincolnb-htcondor-cluster --public
 $vc3client cluster-addnodeset lincolnb-htcondor-cluster lincolnb-htcondor-nodeset
 
-# create the head node template -- is this generated dynamically?
-#$vc3client nodeset-create --owner lincolnb --node_number 1 --app_type htcondor --app_role head-node --displayname="htcondor headnode" vc3-headnode-htcondor
 
-# create the request
-#$ gnome-terminal -x sh -c "sudo docker exec vc3 vc3-client request-create --cluster lincolnb-htcondor-cluster --project lincolnb --allocations lincolnb.slate-condor kube-test; bash" 
