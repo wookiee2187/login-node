@@ -3,9 +3,10 @@ set -e
 #Start the container
 sudo docker run -v $(pwd)/tasks.conf:/etc/vc3/tasks.conf -v $(pwd)/task/HandleHeadNodes.py:/usr/lib/python2.7/site-packages/vc3master/plugins/task/HandleHeadNodes.py --rm --name vc3 virtualclusters/omnicontainer
 echo "sleep 60s for startup..."
-sleep 60
+sleep 10
 
 vc3client='sudo docker exec vc3 vc3-client'
+
 
 # create the resource
 $vc3client resource-create --owner lincolnb --accesstype batch --accessmethod ssh --accessflavor condor --accesshost slate-micro-condor.slateci.io --accessport 22 --node generic-nodesize --description "SLATE CI" --displayname "SLATE" --url "https://slatecio.io" --pubtokendocurl "https://slateci.io" --organization "SLATECI" slate-condor --public

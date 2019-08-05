@@ -29,32 +29,11 @@ class HandleHeadNodes(VC3Task):
 
     def __init__(self, parent, config, section):
         super(HandleHeadNodes, self).__init__(parent, config, section)
+#	self.log("INITIALIZING PRINT")
+	print("INITIALIZING PRINT")
         self.client = parent.client
-        self.config = config
-    '''
-        nova_conf = {
-                'version' : '2.0',
-                'username' : self.config.get(section, 'username'),
-                'password' : self.config.get(section, 'password'),
-                'user_domain_name' : self.config.get(section, 'user_domain_name'),
-                'project_domain_name' : self.config.get(section, 'project_domain_name'),
-                'auth_url' : self.config.get(section, 'auth_url'),
-                }
-    '''
-
-        #creating OpenStack client 
-        #self.nova = novaclient.Client( **nova_conf );
-
-	# loading kubernetes cluster,providing easy access to the API
-    	config.load_kube_config()
-    	self.v1 = client.CoreV1Api()
-    	self.k8s_client = client.ApiClient()
-    	self.k8s_api = client.ExtensionsV1beta1Api(k8s_client)
-        configuration = kubernetes.client.Configuration()
-        self.api_instance = kubernetes.client.CoreV1Api(kubernetes.client.ApiClient(configuration))	
-        
+        self.config = config 
         self.node_prefix           = self.config.get(section, 'node_prefix')
-
         self.node_image            = self.config.get(section, 'node_image')
         self.node_flavor           = self.config.get(section, 'node_flavor')
         self.node_user             = self.config.get(section, 'node_user')
@@ -68,14 +47,13 @@ class HandleHeadNodes(VC3Task):
         self.ansible_path       = os.path.expanduser(self.config.get(section, 'ansible_path'))
         self.ansible_playbook   = self.config.get(section, 'ansible_playbook')
 
-        self.ansible_debug_file = os.path.expanduser(self.config.get(section, 'ansible_debug_file')) # temporary for debug, only works for one node at a time
-        self.ansible_debug      = open(self.ansible_debug_file, 'a')
+      #  self.ansible_debug_file = os.path.expanduser(self.config.get(section, 'ansible_debug_file')) # temporary for debug, only works for one node at a time
+      #  self.ansible_debug      = open(self.ansible_debug_file, 'a')
 
         groups = self.config.get(section, 'node_security_groups')
         self.node_security_groups = groups.split(',')
 
         self.initializers = {}
-
         # keep las succesful contact to node, to check against node_max_no_contact_time.
         self.last_contact_times = {}
 
@@ -87,66 +65,78 @@ class HandleHeadNodes(VC3Task):
     def login_info(self, request):
 	#outputs login pod info with node IP, port, deployment, service, configmap1, configmap2 
 	#check if pod exists with k8s python api 
+#       kubernetes.config.load_kube_config()
+	config.load_kube_config()
+        v1 = client.CoreV1Api()
+        k8s_client = client.ApiClient()
+        k8s_api = client.ExtensionsV1beta1Api(k8s_client)
+        configuration = kubernetes.client.Configuration()
+        api_instance = kubernetes.client.CoreV1Api(kubernetes.client.ApiClient(configuration))
 	try:
-	    dep = self.v1.read_namespaced_deployment(name = "login-node-n" + "-" + request.name, namespace = "default")
+	    dep = v1.read_namespaced_deployment(name = "login-node-n" + "-" + request.name, namespace = "default")
 	    # To do - unique namespaces
-            service = self.v1.read_namespaced_service(name = "login-node-service" + "-" + request.name, namespace = "default")
+            service = v1.read_namespaced_service(name = "login-node-service" + "-" + request.name, namespace = "default")
             port = service.spec.ports[0].node_port
-	    list_pods = self.v1.list_namespaced_pod("default") # To do - change to specific namespace
+	    list_pods = v1.list_namespaced_pod("default") # To do - change to specific namespace
 	    pod = list_pods.items[0]
-	    node = self.v1.read_node(pod.spec.node_name)
+	    node = v1.read_node(pod.spec.node_name)
 	    IP = node.status.addresses[0].address
-	    conf1 = self.api_instance.read_namespaced_config_map(name = "new-config" + "-" + request.name, namespace = "default")
-            conf2 = self.api_instance.read_namespaced_config_map(name = "temcon"+ "-" + request.name, namespace = "default")
+	    conf1 = api_instance.read_namespaced_config_map(name = "new-config" + "-" + request.name, namespace = "default")
+            conf2 = api_instance.read_namespaced_config_map(name = "temcon"+ "-" + request.name, namespace = "default")
             return [IP, port, dep, service, conf1, conf2]
 	except Exception:
 		print("pod does not exist")
 
     def login_create(self, request):
-    	try:
+        config.load_kube_config()
+        v1 = client.CoreV1Api()
+        k8s_client = client.ApiClient()
+        k8s_api = client.ExtensionsV1beta1Api(k8s_client)
+        configuration = kubernetes.client.Configuration()
+        api_instance = kubernetes.client.CoreV1Api(kubernetes.client.ApiClient(configuration))
+        try:
         	# checks if deployment, service, configmap already created - To do add checks for service + configmaps
-        	check = self.k8s_api.read_namespaced_deployment_status(name= "login-node-n" + "-" + request.name, namespace ="default")
-        	self.log.info("pod already exists")
-    	except Exception:
-        	pass
-        	# rendering template and creating configmap
-        	config_data = yaml.load(open('vals.yaml'),Loader=yaml.FullLoader)
-        	env = Environment(loader = FileSystemLoader('./templates'), trim_blocks=True, lstrip_blocks=True)
-       		template = env.get_template('condor_config.local.j2')
-        	temp_up = template.render(config_data)
+            check = k8s_api.read_namespaced_deployment_status(name= "login-node-n" + "-" + request.name, namespace ="default")
+            self.log.info("pod already exists")
+        except Exception:
+            pass
+            # rendering template and creating configmap
+            config_data = yaml.load(open('vals.yaml'),Loader=yaml.FullLoader)
+            env = Environment(loader = FileSystemLoader('./templates'), trim_blocks=True, lstrip_blocks=True)
+       	    template = env.get_template('condor_config.local.j2')
+            temp_up = template.render(config_data)
 
-        	name = 'temcon'+ '-' + request.name
-       		namespace = 'default'
-        	body = kubernetes.client.V1ConfigMap()
-        	body.data = dict([("condor_config.local" ,temp_up)])
-        	body.metadata = kubernetes.client.V1ObjectMeta()
-        	body.metadata.name = name
-        	configuration = kubernetes.client.Configuration()
-        	api_instance = kubernetes.client.CoreV1Api(kubernetes.client.ApiClient(configuration)) 
-		try:
-            		api_response = api_instance.create_namespaced_config_map(namespace, body)
-        	except ApiException as e:
-            		print("Exception when calling CoreV1Api->create_namespaced_config_map: %s\n" % e)
-
-        	#creating deployment, service, and configmap 
+            name = 'temcon'+ '-' + request.name
+       	    namespace = 'default'
+            body = kubernetes.client.V1ConfigMap()
+            body.data = dict([("condor_config.local" ,temp_up)])
+            body.metadata = kubernetes.client.V1ObjectMeta()
+            body.metadata.name = name
+            configuration = kubernetes.client.Configuration()
+            api_instance = kubernetes.client.CoreV1Api(kubernetes.client.ApiClient(configuration)) 
+        try:
+            api_response = api_instance.create_namespaced_config_map(namespace, body)
+        except ApiException as e:
+            print("Exception when calling CoreV1Api->create_namespaced_config_map: %s\n" % e)
+        #creating deployment, service, and configmap 
 		# To do - change name to have the deployment name as the name + request.name
-		utils.create_from_yaml(k8s_client, "deployNservice.yaml")
-        	utils.create_from_yaml(k8s_client, "tconfig.yaml")
+        utils.create_from_yaml(k8s_client, "deployNservice.yaml")
+        utils.create_from_yaml(k8s_client, "tconfig.yaml")
 		
 		# waits till deployment created
-		deps = k8s_api.read_namespaced_deployment_status(name = "login-node-n", namespace ="default")
-       		while(deps.status.available_replicas != 1):
-            		k8s_api = client.ExtensionsV1beta1Api(k8s_client)
-            		deps = k8s_api.read_namespaced_deployment_status(name= "login-node-n", namespace ="default")
-        	self.log.info("LOGIN POD CREATED")
+        deps = k8s_api.read_namespaced_deployment_status(name = "login-node-n", namespace ="default")
+        while(deps.status.available_replicas != 1):
+            k8s_api = client.ExtensionsV1beta1Api(k8s_client)
+            deps = k8s_api.read_namespaced_deployment_status(name= "login-node-n", namespace ="default")
+            self.log.info("LOGIN POD CREATED")
                 
 		#changes name of deployment, service, configmap1 based on request name
-		deps.metadata.name = deps.metadata.name + "-" + request.name
-		service = self.v1.read_namespaced_service(name = "login-node-service", namespace = "default")
-		service.metadata.name = service.metadata.name + "-" + request.name
-		config1 = self.api_instance.read_namespaced_config_map(name = "new-config", namespace = "default") 
-		config1.metadata.name = config1.metadata.name + "-" + request.name
-	    
+        deps.metadata.name = deps.metadata.name + "-" + request.name
+        service = v1.read_namespaced_service(name = "login-node-service", namespace = "default")
+        service.metadata.name = service.metadata.name + "-" + request.name
+        config1 = api_instance.read_namespaced_config_map(name = "new-config", namespace = "default") 
+        config1.metadata.name = config1.metadata.name + "-" + request.name
+	 
     def runtask(self):
         self.log.info("Running task %s" % self.section)
         self.log.debug("Polling master....")
@@ -248,16 +238,16 @@ class HandleHeadNodes(VC3Task):
                         self.log.warning('Exception while killing initializer for %s: %s', request.name, e)
 
                 #server = self.nova.servers.find(name=self.vm_name(request))
-		login = login_info(self, request)
+                login = login_info(self, request)
                 self.log.debug('Teminating headnode %s for request %s', request.headnode, request.name)
                 #server.delete()
-		# deleting login pod, deployment, service and configmaps 
-		# To do - make function
-		self.api_instance.delete_namespaced_deployment(login[2].metadata.name, "default")
-		self.api_instance.delete_namespaced_service(login[3].metadata.name, "default")
-		self.api_instance.delete_namespaced_config_map(login[4].metadata.name, "default")
-		self.api_instance.delete_namespaced_config_map(login[5].metadata.name, "default")
-		# To do - delete deployment, service and configmaps
+		        # deleting login pod, deployment, service and configmaps 
+		        # To do - make function
+                self.api_instance.delete_namespaced_deployment(login[2].metadata.name, "default")
+                self.api_instance.delete_namespaced_service(login[3].metadata.name, "default")
+                self.api_instance.delete_namespaced_config_map(login[4].metadata.name, "default")
+                self.api_instance.delete_namespaced_config_map(login[5].metadata.name, "default")
+		        # To do - delete deployment, service and configmaps
 
                 self.initializers.pop(request.name, None)
                 self.last_contact_times.pop(request.name, None)
@@ -384,7 +374,7 @@ class HandleHeadNodes(VC3Task):
 
         self.log.info('Booting new headnode for request %s...', request.name)
         #server = self.nova.servers.create(name = self.vm_name(request), image = self.node_image, flavor = self.node_flavor, key_name = self.node_public_key_name, security_groups = self.node_security_groups, nics = [{'net-id' : self.node_network_id}])
-	login = login_create(self, request)
+        login = login_create(self, request)
 
         return login
 
@@ -573,27 +563,12 @@ class HandleHeadNodes(VC3Task):
         return app_type
 
     def __get_ip(self, request):
-        try:
-        #    server = self.nova.servers.find(name=self.vm_name(request))
-	    login = login_info(self, request)
-            if login[0] == None:
+        login = login_info(self, request)
+        if login[0] == None:
                 self.log.debug("Headnode for request %s is not active yet.", request.name)
                 return None
-'''
-        except Exception, e:
-            self.log.warning('Could not find headnode for request %s (%s)', request.name, e)
-            return None
-
-        try:
-            for network in server.networks.keys():
-                for ip in server.networks[network]:
-                    if re.match('\d+\.\d+\.\d+\.\d+', ip):
-                        return ip
-        except Exception, e:
-            self.log.warning("Could not find ip for request %s: %s", request.name, e)
-            raise e
-'''
-        return login[0]
+	else:
+                return login[0]
 
     def vm_name(self, request):
         return self.node_prefix + request.name
