@@ -238,15 +238,17 @@ class HandleHeadNodes(VC3Task):
                         self.log.warning('Exception while killing initializer for %s: %s', request.name, e)
 
                 #server = self.nova.servers.find(name=self.vm_name(request))
+        	config.load_kube_config()
+        	api_instance = kubernetes.client.CoreV1Api(kubernetes.client.ApiClient(configuration))
                 login = login_info(self, request)
                 self.log.debug('Teminating headnode %s for request %s', request.headnode, request.name)
                 #server.delete()
 		        # deleting login pod, deployment, service and configmaps 
 		        # To do - make function
-                self.api_instance.delete_namespaced_deployment(login[2].metadata.name, "default")
-                self.api_instance.delete_namespaced_service(login[3].metadata.name, "default")
-                self.api_instance.delete_namespaced_config_map(login[4].metadata.name, "default")
-                self.api_instance.delete_namespaced_config_map(login[5].metadata.name, "default")
+                api_instance.delete_namespaced_deployment(login[2].metadata.name, "default")
+                api_instance.delete_namespaced_service(login[3].metadata.name, "default")
+                api_instance.delete_namespaced_config_map(login[4].metadata.name, "default")
+                api_instance.delete_namespaced_config_map(login[5].metadata.name, "default")
 		        # To do - delete deployment, service and configmaps
 
                 self.initializers.pop(request.name, None)

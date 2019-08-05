@@ -15,6 +15,7 @@ from vc3infoservice.infoclient import InfoConnectionFailure,InfoEntityMissingExc
 
 import pluginmanager as pm
 import traceback
+import kubernetes 
 
 class HandleRequests(VC3Task):
     '''
@@ -335,29 +336,12 @@ class HandleRequests(VC3Task):
             self.add_nodeset_to_queuesconf(config, request, resource, resource_nodesize, allocation, nodeset)
 
     def __get_ip(self, request):
-        try:
-            server = self.nova.servers.find(name=self.vm_name(request))
-
-            if server.status != 'ACTIVE':
+        login = login_info(self, request)
+        if login[0] == None:
                 self.log.debug("Headnode for request %s is not active yet.", request.name)
                 return None
-
-        except Exception, e:
-            self.log.warning('Could not find headnode for request %s (%s)', request.name, e)
-            return None
-
-        try:
-            for network in server.networks.keys():
-                for ip in server.networks[network]:
-                    if re.match('\d+\.\d+\.\d+\.\d+', ip):
-                        return ip
-        except Exception, e:
-            self.log.warning("Could not find ip for request %s: %s", request.name, e)
-            raise e
-
-        return None
-
-
+	else:
+                return login[0]
     def add_nodeset_to_queuesconf(self, config, request, resource, resource_nodesize, allocation, nodeset):
         node_number  = self.jobs_to_run_by_policy(request, allocation, nodeset)
         section_name = request.name + '.' + nodeset.name + '.' + allocation.name
