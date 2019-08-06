@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 #Start the container
-sudo docker run -d -v $(pwd)/tasks.conf:/etc/vc3/tasks.conf -v $(pwd)/task/HandleRequests.py:/usr/lib/python2.7/site-packages/vc3master/plugins/task/HandleRequests.py -v $(pwd)/task/HandleHeadNodes.py:/usr/lib/python2.7/site-packages/vc3master/plugins/task/HandleHeadNodes.py --rm --name vc3 virtualclusters/omnicontainer
+sudo docker run -d -v $(pwd)/vals.yaml:/usr/lib/python2.7/site-packages/vc3master/plugins/task/vals.yaml -v $(pwd)/tasks.conf:/etc/vc3/tasks.conf -v $(pwd)/task/HandleRequests.py:/usr/lib/python2.7/site-packages/vc3master/plugins/task/HandleRequests.py -v $(pwd)/task/HandleHeadNodes.py:/usr/lib/python2.7/site-packages/vc3master/plugins/task/HandleHeadNodes.py --rm --name vc3 virtualclusters/omnicontainer
 echo "sleep 60s for startup..."
 sleep 10
 

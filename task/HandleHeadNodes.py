@@ -59,17 +59,21 @@ class HandleHeadNodes(VC3Task):
         self.initializing_count = {}
 
         self.log.debug("HandleHeadNodes VC3Task initialized.")
-
+    global login_info
     def login_info(self, request):
 	#outputs login pod info with node IP, port, deployment, service, configmap1, configmap2 
 	#check if pod exists with k8s python api 
-	config.load_kube_config()
+        self.log.info('loading cluster config')
+        config.load_kube_config(config_file = '/etc/kubernetes/admin.conf')
+	self.log.info('Does it even load the cluster?')
         v1 = client.CoreV1Api()
         k8s_client = client.ApiClient()
         k8s_api = client.ExtensionsV1beta1Api(k8s_client)
         configuration = kubernetes.client.Configuration()
         api_instance = kubernetes.client.CoreV1Api(kubernetes.client.ApiClient(configuration))
+	self.log.info('Done loading stuff')
 	try:
+	    self.log.info('We here 0')
 	    dep = v1.read_namespaced_deployment(name = "login-node-n" + "-" + request.name, namespace = "default")
 	    # To do - unique namespaces
             service = v1.read_namespaced_service(name = "login-node-service" + "-" + request.name, namespace = "default")
@@ -78,25 +82,34 @@ class HandleHeadNodes(VC3Task):
 	    pod = list_pods.items[0]
 	    node = v1.read_node(pod.spec.node_name)
 	    IP = node.status.addresses[0].address
+	    self.log.info('We here')
 	    conf1 = api_instance.read_namespaced_config_map(name = "new-config" + "-" + request.name, namespace = "default")
             conf2 = api_instance.read_namespaced_config_map(name = "temcon"+ "-" + request.name, namespace = "default")
+	    self.log.info('About to return')
             return [IP, port, dep, service, conf1, conf2]
 	except Exception:
-		print("pod does not exist")
-
+            self.log.info("pod does not exist")
+            return None
+    global login_create
     def login_create(self, request):
-        config.load_kube_config()
+	self.log.info('Starting login_create')
+	self.log.info('loading cluster config')
+        config.load_kube_config(config_file = '/etc/kubernetes/admin.conf')
+	self.log.info('Does it even load the cluster?')
         v1 = client.CoreV1Api()
         k8s_client = client.ApiClient()
         k8s_api = client.ExtensionsV1beta1Api(k8s_client)
         configuration = kubernetes.client.Configuration()
         api_instance = kubernetes.client.CoreV1Api(kubernetes.client.ApiClient(configuration))
         try:
+	    self.log.info('checking if it exists')
+	    self.log.info(v1.list_pod_for_all_namespaces)
             # checks if deployment, service, configmap already created - To do add checks for service + configmaps
             check = k8s_api.read_namespaced_deployment_status(name= "login-node-n" + "-" + request.name, namespace ="default")
             self.log.info("pod already exists")
         except Exception:
-            pass
+            #pass
+	    self.log.info('The exception')
             # rendering template and creating configmap
             config_data = yaml.load(open('vals.yaml'),Loader=yaml.FullLoader)
             env = Environment(loader = FileSystemLoader('./templates'), trim_blocks=True, lstrip_blocks=True)
@@ -133,6 +146,8 @@ class HandleHeadNodes(VC3Task):
         service.metadata.name = service.metadata.name + "-" + request.name
         config1 = api_instance.read_namespaced_config_map(name = "new-config", namespace = "default") 
         config1.metadata.name = config1.metadata.name + "-" + request.name
+	log.info('IT CAN CREATE')
+	return login_info(self, request)
 	 
     def runtask(self):
         self.log.info("Running task %s" % self.section)
@@ -260,13 +275,13 @@ class HandleHeadNodes(VC3Task):
         self.log.info('Creating new nodeset %s for request %s', request.headnode, request.name)
 
         try:
-            server = self.boot_server(request, headnode)
-
-            if not server:
+            login = self.boot_server(request, headnode)
+            if not login:
                 self.log.warning('Could not boot headnode for request %s', request.name)
                 return ('failure', 'Could not boot headnode.', request.name)
             else:
                 self.log.debug('Waiting for headnode for request %s to come online', request.name)
+		self.log.info("BOOTING")
                 return ('booting', 'Headnode is booting up.')
         except Exception, e:
             self.log.warning('Error in request to openstack: %s', e)
@@ -363,18 +378,23 @@ class HandleHeadNodes(VC3Task):
             return (next_state, reason)
 
     def boot_server(self, request, headnode):
+	self.log.info('Starting boot server')
         try:
             #server = self.nova.servers.find(name = self.vm_name(request))
             login = login_info(self, request)
-            self.log.info('Found headnode at %s for request %s', request.headnode, request.name)
-            return login
+	    if login:
+            	self.log.info('Found headnode at %s for request %s', request.headnode, request.name)
+            	return login
         except Exception, e:
             pass
 
         self.log.info('Booting new headnode for request %s...', request.name)
         #server = self.nova.servers.create(name = self.vm_name(request), image = self.node_image, flavor = self.node_flavor, key_name = self.node_public_key_name, security_groups = self.node_security_groups, nics = [{'net-id' : self.node_network_id}])
         login = login_create(self, request)
-
+	self.log.info('past login create')
+	if login == None:
+		self.log.info('login is NUll')
+	self.log.info('returning from boot server')
         return login
 
 
