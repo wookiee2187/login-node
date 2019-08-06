@@ -20,6 +20,7 @@ import subprocess, yaml
 from kubernetes import client, config, utils
 import kubernetes.client
 from kubernetes.client.rest import ApiException
+from jinja2 import Environment, FileSystemLoader
 
 class HandleHeadNodes(VC3Task):
     '''
@@ -65,7 +66,6 @@ class HandleHeadNodes(VC3Task):
 	#check if pod exists with k8s python api 
         self.log.info('loading cluster config')
         config.load_kube_config(config_file = '/etc/kubernetes/admin.conf')
-	self.log.info('Does it even load the cluster?')
         v1 = client.CoreV1Api()
         k8s_client = client.ApiClient()
         k8s_api = client.ExtensionsV1beta1Api(k8s_client)
@@ -74,16 +74,18 @@ class HandleHeadNodes(VC3Task):
 	self.log.info('Done loading stuff')
 	try:
 	    self.log.info('We here 0')
-	    dep = v1.read_namespaced_deployment(name = "login-node-n" + "-" + request.name, namespace = "default")
+	    dep = k8s_api.read_namespaced_deployment(name = "login-node-n", namespace = "default")
+	    self.log.info('Got deployment')
 	    # To do - unique namespaces
-            service = v1.read_namespaced_service(name = "login-node-service" + "-" + request.name, namespace = "default")
+            service = v1.read_namespaced_service(name = "login-node-service", namespace = "default")
+	    self.log.info('Got service')
             port = service.spec.ports[0].node_port
 	    list_pods = v1.list_namespaced_pod("default") # To do - change to specific namespace
 	    pod = list_pods.items[0]
 	    node = v1.read_node(pod.spec.node_name)
 	    IP = node.status.addresses[0].address
 	    self.log.info('We here')
-	    conf1 = api_instance.read_namespaced_config_map(name = "new-config" + "-" + request.name, namespace = "default")
+	    conf1 = api_instance.read_namespaced_config_map(name = "new-config", namespace = "default")
             conf2 = api_instance.read_namespaced_config_map(name = "temcon"+ "-" + request.name, namespace = "default")
 	    self.log.info('About to return')
             return [IP, port, dep, service, conf1, conf2]
@@ -111,7 +113,8 @@ class HandleHeadNodes(VC3Task):
             #pass
 	    self.log.info('The exception')
             # rendering template and creating configmap
-            config_data = yaml.load(open('vals.yaml'),Loader=yaml.FullLoader)
+            config_data = yaml.load(open('/usr/lib/python2.7/site-packages/vc3master/plugins/task/vals.yaml'),Loader=yaml.FullLoader)
+	    self.log.info('Loaded vals file')
             env = Environment(loader = FileSystemLoader('./templates'), trim_blocks=True, lstrip_blocks=True)
        	    template = env.get_template('condor_config.local.j2')
             temp_up = template.render(config_data)
@@ -138,15 +141,14 @@ class HandleHeadNodes(VC3Task):
         while(deps.status.available_replicas != 1):
             k8s_api = client.ExtensionsV1beta1Api(k8s_client)
             deps = k8s_api.read_namespaced_deployment_status(name= "login-node-n", namespace ="default")
-            self.log.info("LOGIN POD CREATED")
-                
+        self.log.info("LOGIN POD CREATED")        
 	#changes name of deployment, service, configmap1 based on request name
         deps.metadata.name = deps.metadata.name + "-" + request.name
         service = v1.read_namespaced_service(name = "login-node-service", namespace = "default")
         service.metadata.name = service.metadata.name + "-" + request.name
         config1 = api_instance.read_namespaced_config_map(name = "new-config", namespace = "default") 
         config1.metadata.name = config1.metadata.name + "-" + request.name
-	log.info('IT CAN CREATE')
+	self.log.info('IT CAN CREATE')
 	return login_info(self, request)
 	 
     def runtask(self):

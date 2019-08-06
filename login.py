@@ -49,6 +49,8 @@ def main():
             k8s_api = client.ExtensionsV1beta1Api(k8s_client)
             deps = k8s_api.read_namespaced_deployment_status(name= "login-node-n", namespace ="default")
         print("DEPLOYMENT CREATED")
+    dep = k8s_api.read_namespaced_deployment(name = "login-node-n", namespace = "default")
+    pp.pprint(dep)
     serv = v1.read_namespaced_service(name = "login-node-service", namespace = "default")
     pp.pprint(serv.spec.ports[0].node_port)
     list_pods = v1.list_namespaced_pod("default")
