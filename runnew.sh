@@ -5,6 +5,7 @@ sudo docker run --detach -v $(pwd)/templates:/templates -v ~/.kube/config:/etc/k
 sudo docker cp  $(pwd)/vals.yaml vc3:/usr/lib/python2.7/site-packages/vc3master/plugins/task 
 sudo docker cp $(pwd)/deployNservice.yaml vc3:deployNservice.yaml
 sudo docker cp $(pwd)/tconfig.yaml vc3:tconfig.yaml
+sudo docker cp /Users/nehalingareddy/.ssh/id_rsa vc3:private_key
 
 echo "sleep 60s for startup..."
 sleep 10

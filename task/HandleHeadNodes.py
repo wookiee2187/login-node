@@ -22,6 +22,7 @@ import kubernetes.client
 from kubernetes.client.rest import ApiException
 from jinja2 import Environment, FileSystemLoader
 
+
 class HandleHeadNodes(VC3Task):
     '''
     Plugin to manage the head nodes lifetime.
@@ -43,11 +44,11 @@ class HandleHeadNodes(VC3Task):
         self.node_max_no_contact_time    = int(self.config.get(section, 'node_max_no_contact_time'))
         self.node_max_initializing_count = int(self.config.get(section, 'node_max_initializing_count'))
 
-        self.ansible_path       = os.path.expanduser(self.config.get(section, 'ansible_path'))
-        self.ansible_playbook   = self.config.get(section, 'ansible_playbook')
+#        self.ansible_path       = os.path.expanduser(self.config.get(section, 'ansible_path'))
+#        self.ansible_playbook   = self.config.get(section, 'ansible_playbook')
 
-        self.ansible_debug_file = os.path.expanduser(self.config.get(section, 'ansible_debug_file')) # temporary for debug, only works for one node at a time
-        self.ansible_debug      = open(self.ansible_debug_file, 'a')
+#        self.ansible_debug_file = os.path.expanduser(self.config.get(section, 'ansible_debug_file')) # temporary for debug, only works for one node at a time
+#        self.ansible_debug      = open(self.ansible_debug_file, 'a')
 
         groups = self.config.get(section, 'node_security_groups')
         self.node_security_groups = groups.split(',')
@@ -251,19 +252,15 @@ class HandleHeadNodes(VC3Task):
                     except Exception, e:
                         self.log.warning('Exception while killing initializer for %s: %s', request.name, e)
 
-                #server = self.nova.servers.find(name=self.vm_name(request))
         	config.load_kube_config()
         	api_instance = kubernetes.client.CoreV1Api(kubernetes.client.ApiClient(configuration))
                 login = login_info(self, request)
                 self.log.debug('Teminating headnode %s for request %s', request.headnode, request.name)
-                #server.delete()
-		        # deleting login pod, deployment, service and configmaps 
-		        # To do - make function
+		# To do - make function
                 api_instance.delete_namespaced_deployment(login[2].metadata.name, "default")
                 api_instance.delete_namespaced_service(login[3].metadata.name, "default")
                 api_instance.delete_namespaced_config_map(login[4].metadata.name, "default")
                 api_instance.delete_namespaced_config_map(login[5].metadata.name, "default")
-		        # To do - delete deployment, service and configmaps
 
                 self.initializers.pop(request.name, None)
                 self.last_contact_times.pop(request.name, None)
@@ -294,21 +291,21 @@ class HandleHeadNodes(VC3Task):
             headnode.app_host = self.__get_ip(request)
             if headnode.app_host:
                 self.last_contact_times[request.name] = time.time()
-
-        if self.check_if_online(request, headnode):
+	    headnode.port = self.__get_port( request)
+       # if self.check_if_online(request, headnode):
             return ('initializing', 'Headnode is being configured.')
-        else: 
-            self.log.debug('Headnode for %s could not yet be used for login.', request.name)
-            return ('booting', 'Headnode is booting up.')
+        #else: 
+         #   self.log.debug('Headnode for %s could not yet be used for login.', request.name)
+        #    return ('booting', 'Headnode is booting up.')
 
 
     def state_initializing(self, request, headnode):
-        self.initialize_server(request, headnode)
+        #self.initialize_server(request, headnode)
 
         (next_state, state_reason) = self.check_if_done_init(request, headnode)
 
-        if self.check_if_online(request, headnode):
-            self.last_contact_times[request.name] = time.time()
+#        if self.check_if_online(request, headnode):
+        #self.last_contact_times[request.name] = time.time()
 
         if next_state == 'running':
             self.log.info('Done initializing server %s for request %s', request.headnode, request.name)
@@ -319,8 +316,8 @@ class HandleHeadNodes(VC3Task):
 
 
     def state_running(self, request, headnode):
-        if self.check_if_online(request, headnode):
-            self.last_contact_times[request.name] = time.time()
+        #if self.check_if_online(request, headnode):
+         #   self.last_contact_times[request.name] = time.time()
 
         return ('running', 'Headnode is ready to be used.')
 
@@ -331,23 +328,17 @@ class HandleHeadNodes(VC3Task):
             return False
 
         try:
+	    self.log.info('The port is')
+	    self.log.info(headnode.port)
             self.log.debug("Connecting to headnode %s with key %s as user %s", headnode.app_host, self.node_private_key_file, self.node_user )
             subprocess.check_call([
                 'ssh',
-                '-o',
-                'UserKnownHostsFile=/dev/null',
-                '-o',
-                'StrictHostKeyChecking=no',
-                '-o',
-
-                'ConnectTimeout=10',
                 '-i',
                 self.node_private_key_file,
-                '-l',
-                self.node_user,
-                headnode.app_host,
-                '--',
-                '/bin/date'])
+		'-p',
+                str(headnode.port),
+                self.node_user +'@'
+                + headnode.app_host], shell=True)
 
             self.log.info('Headnode for %s running at %s', request.name, headnode.app_host)
 
@@ -382,7 +373,6 @@ class HandleHeadNodes(VC3Task):
     def boot_server(self, request, headnode):
 	self.log.info('Starting boot server')
         try:
-            #server = self.nova.servers.find(name = self.vm_name(request))
             login = login_info(self, request)
 	    if login:
             	self.log.info('Found headnode at %s for request %s', request.headnode, request.name)
@@ -391,7 +381,6 @@ class HandleHeadNodes(VC3Task):
             pass
 
         self.log.info('Booting new headnode for request %s...', request.name)
-        #server = self.nova.servers.create(name = self.vm_name(request), image = self.node_image, flavor = self.node_flavor, key_name = self.node_public_key_name, security_groups = self.node_security_groups, nics = [{'net-id' : self.node_network_id}])
         login = login_create(self, request)
 	self.log.info('past login create')
 	if login == None:
@@ -437,45 +426,19 @@ class HandleHeadNodes(VC3Task):
                     '--extra-vars',
                     json.dumps(extra_vars),
                     '--key-file',
-                    self.node_private_key_file,
+                    'private_key',
                     '--inventory',
                     headnode.app_host + ',',
                     ],
                 cwd = self.ansible_path,
                 stdout=self.ansible_debug,
                 stderr=self.ansible_debug,
-                )
+                )  
         self.initializers[request.name] = pipe
         self.last_contact_times[request.name] = time.time()
 
     def check_if_done_init(self, request, headnode):
-        try:
-            pipe = self.initializers[request.name]
-            pipe.poll()
-
-            self.ansible_debug.flush()
-
-            if pipe.returncode is None:
-                return ('initializing', 'Headnode is being configured.')
-
-            # the process is done when there is a returncode
-            self.initializers.pop(request.name, None)
-
-            if pipe.returncode != 0:
-                self.log.warning('Error when initializing headnode for request %s. Exit status: %d', request.name, pipe.returncode)
-                
-                if self.initializing_count[request.name] >= self.node_max_initializing_count:
-                    self.log.warning("Could not initialize headnode after %d tries." % (self.node_max_initializing_count,))
-                    return ('failure', 'Headnode could not be configured.')
-                else:
-                    # Make another go at initializing...
-                    return ('initializing', 'Headnode is being configured.')
-
             return ('running', 'Headnode is ready to be used.')
-
-        except Exception, e:
-            self.log.warning('Error for headnode initializers for request %s (%s)', request.name, e)
-            return ('failure', 'Headnode could not be configured.')
 
     def report_running_server(self, request, headnode):
         try:
@@ -590,7 +553,13 @@ class HandleHeadNodes(VC3Task):
                 return None
 	else:
                 return login[0]
-
+    def __get_port(self, request):
+        login = login_info(self, request)
+        if login[1] == None:
+                self.log.debug("Headnode for request %s is not active yet.", request.name)
+                return None
+        else:
+                return login[1]
     def vm_name(self, request):
         return self.node_prefix + request.name
 
