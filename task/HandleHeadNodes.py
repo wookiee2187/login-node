@@ -81,6 +81,8 @@ class HandleHeadNodes(VC3Task):
 	    conf1 = api_instance.read_namespaced_config_map(name = "new-config", namespace = "default")
             conf2 = api_instance.read_namespaced_config_map(name = "temcon"+ "-" + request.name, namespace = "default")
 	    self.log.info('About to return')
+	    self.log.info(IP)
+	    self.log.info(port)
             return [IP, port, dep, service, conf1, conf2]
 	except Exception:
             self.log.info("pod does not exist")
