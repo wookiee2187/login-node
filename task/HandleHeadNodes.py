@@ -44,12 +44,6 @@ class HandleHeadNodes(VC3Task):
         self.node_max_no_contact_time    = int(self.config.get(section, 'node_max_no_contact_time'))
         self.node_max_initializing_count = int(self.config.get(section, 'node_max_initializing_count'))
 
-#        self.ansible_path       = os.path.expanduser(self.config.get(section, 'ansible_path'))
-#        self.ansible_playbook   = self.config.get(section, 'ansible_playbook')
-
-#        self.ansible_debug_file = os.path.expanduser(self.config.get(section, 'ansible_debug_file')) # temporary for debug, only works for one node at a time
-#        self.ansible_debug      = open(self.ansible_debug_file, 'a')
-
         groups = self.config.get(section, 'node_security_groups')
         self.node_security_groups = groups.split(',')
 
@@ -61,6 +55,7 @@ class HandleHeadNodes(VC3Task):
         self.initializing_count = {}
 
         self.log.debug("HandleHeadNodes VC3Task initialized.")
+
     global login_info
     def login_info(self, request):
 	#outputs login pod info with node IP, port, deployment, service, configmap1, configmap2 
@@ -74,10 +69,8 @@ class HandleHeadNodes(VC3Task):
         api_instance = kubernetes.client.CoreV1Api(kubernetes.client.ApiClient(configuration))
 	self.log.info('Done loading stuff')
 	try:
-	    self.log.info('We here 0')
 	    dep = k8s_api.read_namespaced_deployment(name = "login-node-n", namespace = "default")
 	    self.log.info('Got deployment')
-	    # To do - unique namespaces
             service = v1.read_namespaced_service(name = "login-node-service", namespace = "default")
 	    self.log.info('Got service')
             port = service.spec.ports[0].node_port
@@ -85,7 +78,6 @@ class HandleHeadNodes(VC3Task):
 	    pod = list_pods.items[0]
 	    node = v1.read_node(pod.spec.node_name)
 	    IP = node.status.addresses[0].address
-	    self.log.info('We here')
 	    conf1 = api_instance.read_namespaced_config_map(name = "new-config", namespace = "default")
             conf2 = api_instance.read_namespaced_config_map(name = "temcon"+ "-" + request.name, namespace = "default")
 	    self.log.info('About to return')
@@ -93,12 +85,11 @@ class HandleHeadNodes(VC3Task):
 	except Exception:
             self.log.info("pod does not exist")
             return None
+
     global login_create
     def login_create(self, request):
 	self.log.info('Starting login_create')
-	self.log.info('loading cluster config')
         config.load_kube_config(config_file = '/etc/kubernetes/admin.conf')
-	self.log.info('Does it even load the cluster?')
         v1 = client.CoreV1Api()
         k8s_client = client.ApiClient()
         k8s_api = client.ExtensionsV1beta1Api(k8s_client)
@@ -119,7 +110,6 @@ class HandleHeadNodes(VC3Task):
             env = Environment(loader = FileSystemLoader('./templates'), trim_blocks=True, lstrip_blocks=True)
        	    template = env.get_template('condor_config.local.j2')
             temp_up = template.render(config_data)
-
             name = 'temcon'+ '-' + request.name
        	    namespace = 'default'
             body = kubernetes.client.V1ConfigMap()
@@ -133,25 +123,32 @@ class HandleHeadNodes(VC3Task):
         except ApiException as e:
             print("Exception when calling CoreV1Api->create_namespaced_config_map: %s\n" % e)
         
-	#creating deployment, service, and configmap 
 	# To do - change name to have the deployment name as the name + request.name
         utils.create_from_yaml(k8s_client, "deployNservice.yaml")
-        utils.create_from_yaml(k8s_client, "tconfig.yaml")	
-	# waits till deployment created
-        deps = k8s_api.read_namespaced_deployment_status(name = "login-node-n", namespace ="default")
-        while(deps.status.available_replicas != 1):
+        utils.create_from_yaml(k8s_client, "tconfig.yaml")
+	return 1
+
+    global login_pending 
+    def login_pending(self, request): 
+	config.load_kube_config(config_file = '/etc/kubernetes/admin.conf')
+        v1 = client.CoreV1Api()
+        k8s_client = client.ApiClient()
+        k8s_api = client.ExtensionsV1beta1Api(k8s_client)
+        configuration = kubernetes.client.Configuration()
+        api_instance = kubernetes.client.CoreV1Api(kubernetes.client.ApiClient(configuration))
+	deps = k8s_api.read_namespaced_deployment_status(name= "login-node-n", namespace ="default")
+	while(deps.status.available_replicas != 1):
             k8s_api = client.ExtensionsV1beta1Api(k8s_client)
             deps = k8s_api.read_namespaced_deployment_status(name= "login-node-n", namespace ="default")
-        self.log.info("LOGIN POD CREATED")        
-	#changes name of deployment, service, configmap1 based on request name
+        self.log.info("LOGIN POD CREATED")
+
         deps.metadata.name = deps.metadata.name + "-" + request.name
         service = v1.read_namespaced_service(name = "login-node-service", namespace = "default")
         service.metadata.name = service.metadata.name + "-" + request.name
-        config1 = api_instance.read_namespaced_config_map(name = "new-config", namespace = "default") 
+        config1 = api_instance.read_namespaced_config_map(name = "new-config", namespace = "default")
         config1.metadata.name = config1.metadata.name + "-" + request.name
-	self.log.info('IT CAN CREATE')
-	return login_info(self, request)
-	 
+        return login_info(self, request)
+
     def runtask(self):
         self.log.info("Running task %s" % self.section)
         self.log.debug("Polling master....")
@@ -212,8 +209,8 @@ class HandleHeadNodes(VC3Task):
             if next_state == 'booting': 
                 (next_state, reason) = self.state_booting(request, headnode)
 
-            if next_state == 'initializing':
-                (next_state, reason) = self.state_initializing(request, headnode)
+            if next_state == 'pending':
+                (next_state, reason) = self.state_pending(request, headnode)
 
             if next_state == 'running':
                 (next_state, reason) = self.state_running(request, headnode)
@@ -245,13 +242,6 @@ class HandleHeadNodes(VC3Task):
     def state_terminating(self, request, headnode):
         try:
             if headnode.state != 'terminated':
-                if self.initializers.get(request.name, None):
-                    try:
-                        proc = self.initializers[request.name]
-                        proc.terminate()
-                    except Exception, e:
-                        self.log.warning('Exception while killing initializer for %s: %s', request.name, e)
-
         	config.load_kube_config()
         	api_instance = kubernetes.client.CoreV1Api(kubernetes.client.ApiClient(configuration))
                 login = login_info(self, request)
@@ -272,7 +262,6 @@ class HandleHeadNodes(VC3Task):
 
     def state_new(self, request, headnode):
         self.log.info('Creating new nodeset %s for request %s', request.headnode, request.name)
-
         try:
             login = self.boot_server(request, headnode)
             if not login:
@@ -292,24 +281,21 @@ class HandleHeadNodes(VC3Task):
             if headnode.app_host:
                 self.last_contact_times[request.name] = time.time()
 	    headnode.port = self.__get_port( request)
-       # if self.check_if_online(request, headnode):
-            return ('initializing', 'Headnode is being configured.')
-        #else: 
-         #   self.log.debug('Headnode for %s could not yet be used for login.', request.name)
-        #    return ('booting', 'Headnode is booting up.')
+            return ('pending', 'Headnode is being configured.')
 
-
-    def state_initializing(self, request, headnode):
+    def state_pending(self, request, headnode):
         #self.initialize_server(request, headnode)
+	login_pending(self,request)
+        (next_state, state_reason) = ('running', 'Headnode is ready to be used.') 
 
-        (next_state, state_reason) = self.check_if_done_init(request, headnode)
+	#self.check_if_done_init(request, headnode)
 
-#        if self.check_if_online(request, headnode):
+	#if self.check_if_online(request, headnode):
         #self.last_contact_times[request.name] = time.time()
 
         if next_state == 'running':
             self.log.info('Done initializing server %s for request %s', request.headnode, request.name)
-            self.report_running_server(request, headnode)
+            #self.report_running_server(request, headnode)
         elif next_state != 'failure':
             self.log.debug('Waiting for headnode for %s to finish initialization.', request.name)
         return (next_state, state_reason)
@@ -437,7 +423,7 @@ class HandleHeadNodes(VC3Task):
         self.initializers[request.name] = pipe
         self.last_contact_times[request.name] = time.time()
 
-    def check_if_done_init(self, request, headnode):
+    def check_if_done(self, request, headnode):
             return ('running', 'Headnode is ready to be used.')
 
     def report_running_server(self, request, headnode):
