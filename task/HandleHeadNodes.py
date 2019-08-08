@@ -68,6 +68,8 @@ class HandleHeadNodes(VC3Task):
         configuration = kubernetes.client.Configuration()
         api_instance = kubernetes.client.CoreV1Api(kubernetes.client.ApiClient(configuration))
 	self.log.info('Done loading stuff')
+        self.log.info('calling add keys')
+        add_keys_to_pod(self, request)
 	try:
 	    dep = k8s_api.read_namespaced_deployment(name = "login-node-n", namespace = "default")
 	    self.log.info('Got deployment')
@@ -97,6 +99,8 @@ class HandleHeadNodes(VC3Task):
         k8s_api = client.ExtensionsV1beta1Api(k8s_client)
         configuration = kubernetes.client.Configuration()
         api_instance = kubernetes.client.CoreV1Api(kubernetes.client.ApiClient(configuration))
+	self.log.info('calling add keys')
+	add_keys_to_pod(self, request)
         try:
 	    self.log.info('checking if it exists')
 	    self.log.info(v1.list_pod_for_all_namespaces)
@@ -124,7 +128,6 @@ class HandleHeadNodes(VC3Task):
             api_response = api_instance.create_namespaced_config_map(namespace, body)
         except ApiException as e:
             print("Exception when calling CoreV1Api->create_namespaced_config_map: %s\n" % e)
-        
 	# To do - change name to have the deployment name as the name + request.name
         utils.create_from_yaml(k8s_client, "deployNservice.yaml")
         utils.create_from_yaml(k8s_client, "tconfig.yaml")
@@ -150,6 +153,22 @@ class HandleHeadNodes(VC3Task):
         config1 = api_instance.read_namespaced_config_map(name = "new-config", namespace = "default")
         config1.metadata.name = config1.metadata.name + "-" + request.name
         return login_info(self, request)
+    
+    global add_keys_to_pod
+    def add_keys_to_pod(self, request):
+        members    = self.get_members_names(request)
+	attributes = {}
+	i = 1000
+        for member in members:
+            try:
+                user = self.client.getUser(member)
+            except Exception, e:
+                self.log.warning("Could not find user: %s", member)
+                raise e
+	    string_to_append = str(user.name) +':x:' + str(i) + ':' + str(i) + '::'+ '/home/' + str(user.name) + ':' + '/bin/bash:' + str(user.sshpubstring)
+            self.log.info(string_to_append)
+	    i = i + 1
+        return attributes
 
     def runtask(self):
         self.log.info("Running task %s" % self.section)
