@@ -69,7 +69,7 @@ class HandleHeadNodes(VC3Task):
         api_instance = kubernetes.client.CoreV1Api(kubernetes.client.ApiClient(configuration))
 	self.log.info('Done loading stuff')
         self.log.info('calling add keys')
-        #add_keys_to_pod(self, request)
+        add_keys_to_pod(self, request)
 	try:
 	    dep = k8s_api.read_namespaced_deployment(name = "login-node-n", namespace = "default")
 	    self.log.info('Got deployment')
@@ -168,7 +168,9 @@ class HandleHeadNodes(VC3Task):
 	    string_to_append = '\n' + '    ' + str(user.name) +':x:' + str(i) + ':' + str(i) + '::'+ '/home/' + str(user.name) + ':' + '/bin/bash:' + str(user.sshpubstring)
             self.log.info(string_to_append)
 	    i = i + 1
-	    subprocess.call(['chmod', '0770', 'tconfig.yaml'])
+	    subprocess.call(['sudo','cp', '/tmp/tconfig.yaml', 'tconfig.yaml'])
+	    self.log.info("MOVED TO TMP")
+#	    subprocess.call(['chmod', '0770', 'tconfig.yaml'])
             with open("tconfig.yaml", "a") as myfile:
     	        myfile.write(string_to_append)
 	return attributes

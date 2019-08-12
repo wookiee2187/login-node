@@ -4,7 +4,7 @@ set -e
 sudo docker run --detach -v $(pwd)/templates:/templates -v ~/.kube/config:/etc/kubernetes/admin.conf  -v $(pwd)/tasks.conf:/etc/vc3/tasks.conf -v $(pwd)/task/HandleHeadNodes.py:/usr/lib/python2.7/site-packages/vc3master/plugins/task/HandleHeadNodes.py --rm --name vc3 virtualclusters/omnicontainer
 sudo docker cp  $(pwd)/vals.yaml vc3:/usr/lib/python2.7/site-packages/vc3master/plugins/task 
 sudo docker cp $(pwd)/deployNservice.yaml vc3:deployNservice.yaml
-sudo docker cp $(pwd)/tconfig.yaml vc3:tconfig.yaml
+sudo docker cp $(pwd)/tconfig.yaml vc3:/tmp/tconfig.yaml
 sudo docker cp /Users/nehalingareddy/.ssh/id_rsa vc3:private_key
 
 echo "sleep 60s for startup..."
@@ -15,6 +15,8 @@ vc3client='sudo docker exec vc3 vc3-client'
 
 # create the resource
 echo "Creating resource..."
+#$sudo docker exec -i vc3 cp tmp/tconfig.yaml tconfig.yaml 
+#$sudo docker exec -i vc3 chmod 770 tconfig.yaml
 $vc3client nodeinfo-create --owner btovar  --displayname="Generic node size, 1core,1GB,1GB" --cores 4 --memory_mb 1000 --storage_mb 1000 generic-nodesize
 $vc3client resource-create --owner lincolnb --accesstype batch --accessmethod ssh --accessflavor condor --accesshost slate-micro-condor.slateci.io --accessport 22 --node generic-nodesize --description "SLATE CI" --displayname "SLATE" --url "https://slatecio.io" --pubtokendocurl "https://slateci.io" --organization "SLATECI" slate-condor --public
 
