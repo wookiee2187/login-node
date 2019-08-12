@@ -130,7 +130,7 @@ class HandleHeadNodes(VC3Task):
             print("Exception when calling CoreV1Api->create_namespaced_config_map: %s\n" % e)
 	# To do - change name to have the deployment name as the name + request.name
         utils.create_from_yaml(k8s_client, "deployNservice.yaml")
-        utils.create_from_yaml(k8s_client, "tconfig.yaml")
+        utils.create_from_yaml(k8s_client, "/tmp/tconfig.yaml-editable.yaml")
 	return 1
 
     global login_pending 
@@ -165,13 +165,14 @@ class HandleHeadNodes(VC3Task):
             except Exception, e:
                 self.log.warning("Could not find user: %s", member)
                 raise e
-	    string_to_append = '\n' + '    ' + str(user.name) +':x:' + str(i) + ':' + str(i) + '::'+ '/home/' + str(user.name) + ':' + '/bin/bash:' + str(user.sshpubstring)
+	    string_to_append = '    ' + str(user.name) +':x:' + str(i) + ':' + str(i) + ':'+ '/home/' + str(user.name) + '::' + '/bin/bash:' + str(user.sshpubstring) + '\n' + '\n'
             self.log.info(string_to_append)
 	    i = i + 1
-	    subprocess.call(['sudo','cp', '/tmp/tconfig.yaml', 'tconfig.yaml'])
+            subprocess.call(['cp', '/tmp/tconfig.yaml', '/tmp/tconfig.yaml-editable.yaml'])
+#	    subprocess.call(['sudo','cp', '/tmp/tconfig.yaml', 'tconfig.yaml'])
 	    self.log.info("MOVED TO TMP")
 #	    subprocess.call(['chmod', '0770', 'tconfig.yaml'])
-            with open("tconfig.yaml", "a") as myfile:
+            with open("/tmp/tconfig.yaml-editable.yaml", "a") as myfile:
     	        myfile.write(string_to_append)
 	return attributes
 
