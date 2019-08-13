@@ -228,6 +228,7 @@ class HandleHeadNodes(VC3Task):
             next_state, reason = headnode.state, headnode.state_reason
 
             if request.state == 'cleanup' or request.state == 'terminated':
+		self.log.info("Calling state_terminating")
                 (next_state, reason) = self.state_terminating(request, headnode)
 
             if next_state == 'new':
@@ -268,20 +269,20 @@ class HandleHeadNodes(VC3Task):
 
     def state_terminating(self, request, headnode):
         try:
-            if headnode.state != 'terminated':
-        	config.load_kube_config()
-        	api_instance = kubernetes.client.CoreV1Api(kubernetes.client.ApiClient(configuration))
+        	config.load_kube_config(config_file = '/etc/kubernetes/admin.conf')
+        	configuration = kubernetes.client.Configuration()
+        	api_instance = kubernetes.client.AppsV1Api(kubernetes.client.ApiClient(configuration))
+	        api_instance2 = kubernetes.client.CoreV1Api(kubernetes.client.ApiClient(configuration))
+		self.log.info('Entering login info')
                 login = login_info(self, request)
-                self.log.debug('Teminating headnode %s for request %s', request.headnode, request.name)
+		self.log.info('Leaving login info')
+                #self.log.debug(Teminating headnode %s for request %s, request.headnode, request.name)
 		# To do - make function
                 api_instance.delete_namespaced_deployment(login[2].metadata.name, "default")
-                api_instance.delete_namespaced_service(login[3].metadata.name, "default")
-                api_instance.delete_namespaced_config_map(login[4].metadata.name, "default")
-                api_instance.delete_namespaced_config_map(login[5].metadata.name, "default")
-
+                api_instance2.delete_namespaced_service(login[3].metadata.name, "default")
+                api_instance2.delete_namespaced_config_map(login[4].metadata.name, "default")
+                api_instance2.delete_namespaced_config_map(login[5].metadata.name, "default")
                 self.initializers.pop(request.name, None)
-                self.last_contact_times.pop(request.name, None)
-                self.initializing_count.pop(request.name, None)
         except Exception, e:
             self.log.warning('Could not find headnode instance for request %s (%s)', request.name, e)
         finally:

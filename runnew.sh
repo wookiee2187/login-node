@@ -70,3 +70,5 @@ echo "Creating nodeset..."
 
 # create the request
 $vc3client request-create --owner lincolnb --cluster lincolnb-htcondor-cluster --project lincolnb --allocations lincolnb.slate-condor kube-test
+
+#$vc3client request-delete kube-test
