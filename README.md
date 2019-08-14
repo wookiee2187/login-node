@@ -9,7 +9,9 @@ You will need to paste the following token into the remote cluster in ~/.ssh/aut
 
 
 <<<<<<<<<<<<<< TOKEN BEGINS >>>>>>>>>>>>>>>
+
 [your_key]
+
 <<<<<<<<<<<<< TOKEN ENDS >>>>>>>>>>>>>>>>>>
 
 
