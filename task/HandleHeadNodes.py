@@ -124,8 +124,23 @@ class HandleHeadNodes(VC3Task):
             template2 = env2.get_template('cvmfs_default_local.j2')
 	    temp_up2 = template2.render(config_data2)
 	    #To do - templates for minio, hadoop, spark, motd 
+	    config_data3 = yaml.load(open('/etc/minio'),Loader=yaml.FullLoader)
+            self.log.info('Loaded vals3 file')
+            env3 = Environment(loader = FileSystemLoader('./templates'))
+            template3 = env3.get_template('minio.env')
+            temp_up3 = template3.render(config_data3)
+            config_data4 = yaml.load(open('/etc/minio'),Loader=yaml.FullLoader)
+            self.log.info('Loaded vals3 file')
+            env4 = Environment(loader = FileSystemLoader('./templates'))
+            template4 = env4.get_template('core-site.xml.j2')
+            temp_up4 = template4.render(config_data4)
+            config_data5 = yaml.load(open('/etc/spark'),Loader=yaml.FullLoader)
+            self.log.info('Loaded vals5 file')
+            env5 = Environment(loader = FileSystemLoader('./templates'))
+            template5 = env5.get_template('spark.env')
+            temp_up5 = template5.render(config_data5)
             body = kubernetes.client.V1ConfigMap()
-            body.data = {"condor_config.local":temp_up,"/etc/cvmfs/default.local": temp_up2}
+            body.data = {"condor_config.local":temp_up,"/etc/cvmfs/default.local": temp_up2, "/etc/default/minio" : temp_up3, "/opt/vc3/root/hadoop-core-site.xml" : temp_up4, "/etc/spark/vc3-spark.conf" : temp_up5}
             body.metadata = kubernetes.client.V1ObjectMeta()
             body.metadata.name = name
             configuration = kubernetes.client.Configuration()

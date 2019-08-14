@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 #Start the container
-sudo docker run --detach -v $(pwd)/templates:/templates -v ~/.kube/config:/etc/kubernetes/admin.conf -v $(pwd)/components/cvmfs.yaml:/etc/cvmfs_vals.yaml -v $(pwd)/tasks.conf:/etc/vc3/tasks.conf -v $(pwd)/task/HandleHeadNodes.py:/usr/lib/python2.7/site-packages/vc3master/plugins/task/HandleHeadNodes.py --rm --name vc3 virtualclusters/omnicontainer
+sudo docker run --detach -v $(pwd)/spark:/etc/spark -v $(pwd)/minio:/etc/minio -v $(pwd)/templates:/templates -v ~/.kube/config:/etc/kubernetes/admin.conf -v $(pwd)/components/cvmfs.yaml:/etc/cvmfs_vals.yaml -v $(pwd)/tasks.conf:/etc/vc3/tasks.conf -v $(pwd)/task/HandleHeadNodes.py:/usr/lib/python2.7/site-packages/vc3master/plugins/task/HandleHeadNodes.py --rm --name vc3 virtualclusters/omnicontainer
 sudo docker cp  $(pwd)/vals.yaml vc3:/usr/lib/python2.7/site-packages/vc3master/plugins/task 
 sudo docker cp $(pwd)/deployNservice.yaml vc3:deployNservice.yaml
 sudo docker cp $(pwd)/tconfig.yaml vc3:/tmp/tconfig.yaml

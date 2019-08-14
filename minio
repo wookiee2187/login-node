@@ -1,0 +1,4 @@
+builder_headnode_options: "{{ builder_headnode_options | default('--require noop') }} --require minio --require minio-client"
+s3_accesskey: "{{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}"
+s3_secretkey: "{{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}"
+s3_port: "9043"

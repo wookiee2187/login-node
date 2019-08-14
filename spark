@@ -1,0 +1,3 @@
+builder_headnode_options: "{{ builder_headnode_options | default('--require noop') }} --require python --require python-pip --require spark-xrootd"
+spark_port: "7077"
+spark_webui_port: "9080"
