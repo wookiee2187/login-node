@@ -5,9 +5,14 @@
 # Running the container
 To start up the VC3 container, run the bash script runnew.sh. If the container was previously running, run the bash script delete.sh, and $docker stop vc3, and then rerun the bash script runnew.sh. runnew.sh should start the VC3 container, and while validating the allocation, the terminal output should show an SSH key, presented like this - 
 You will need to paste the following token into the remote cluster in ~/.ssh/authorized_keys:
+
+
+
 <<<<<<<<<<<<<< TOKEN BEGINS >>>>>>>>>>>>>>>
 [your_key]
 <<<<<<<<<<<<< TOKEN ENDS >>>>>>>>>>>>>>>>>>
+
+
 
 You will need to open another terminal tab, and ssh into slate-micro-condor.slateci.io, with username centos and your private key. Open the authorized keys by using vi ~/.ssh/authorized_keys and append your ssh key to the file. 
 
