@@ -1,0 +1,13 @@
+---
+- name: Set hostname
+  hostname:
+    name: "{{ request_name }}.virtualclusters.org"
+
+- name: Add MOTD template
+  template:
+    src: ../templates/motd.j2
+    dest: /etc/motd
+    owner: root
+    group: root
+    mode: 0644
+

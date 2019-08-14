@@ -1,0 +1,3 @@
+CVMFS_REPOSITORIES="`echo $((echo oasis.opensciencegrid.org; ls /cvmfs)|sort -u)|tr ' ' ,`"
+CVMFS_QUOTA_LIMIT={{ cvmfs_quota_limit }}
+CVMFS_HTTP_PROXY="{{ cvmfs_http_proxy }}"

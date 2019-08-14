@@ -1,0 +1,22 @@
+---
+- name: Configure HTCondor
+  template:
+    src: ../templates/condor_config.local.j2
+    dest: /etc/condor/condor_config.local
+    owner: root
+    group: root
+    mode: 0644
+
+- name: restart htcondor
+  service: name=condor state=restarted
+
+- name: create condor password
+  shell: condor_store_cred -c add -p "{{ lookup('password', '/dev/null length=64') }}"
+
+- name: fetch condor password file
+  fetch:
+    src:  /etc/condor/condor_password
+    dest: "{{ shared_secret_file }}"
+    flat: yes
+
+

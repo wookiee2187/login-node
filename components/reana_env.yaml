@@ -1,0 +1,109 @@
+---
+- name: Allow docker container to authenticate with condor
+  blockinfile:
+    path: "/etc/condor/condor_config.local"
+    block: |
+      DOCKER = 172.17.0.0/24
+      ALLOW_WRITE  = $(ALLOW_WRITE), $(DOCKER)
+      ALLOW_READ   = $(ALLOW_READ), $(DOCKER)
+
+- name: Get HTCondor IP Address
+  shell: |
+    condor_status -schedd -af MyAddress
+    wait_condor(){
+      local max_retries=15
+      count=0
+      until [ $count -ge $max_retries ]
+      do
+          htaddr=$(condor_status -schedd -af MyAddress)
+          if [ "x$htaddr" != "x" ]; then
+              break
+          fi
+          ((count++))
+          sleep 5
+      done
+      if [ $count -ge $max_retries ]; then
+          echo "Could not get Schedd address"
+          return 1
+      else
+          echo "$htaddr"
+          return 0
+      fi
+    }
+    wait_condor
+  register: htcondor_ipaddr
+
+- debug:
+    msg: "HTCONDOR_ADDR: {{ htcondor_ipaddr }}"
+
+- name: Update condor address in reana configuration
+  replace:
+    path: "/usr/local/reana/reana-cluster-vc3.yaml"
+    regexp: '^(\s*)(- HTCONDOR_ADDR: )(.)(.*)(.)'
+    replace: '\1\2\3{{ htcondor_ipaddr.stdout }}\5'
+  register: configaddr_update
+
+- debug:
+    msg: "Template update: {{ configaddr_update }}"
+
+- name: Get VC3 request owner userid
+  shell: "id -u {{ request_owner }}"
+  register: vc3id
+
+- debug:
+    msg: "VC3 Owner id: {{ vc3id }}"
+
+- name: Update VC3id in reana configuration
+  replace:
+    path: "/usr/local/reana/reana-cluster-vc3.yaml"
+    regexp: '^(\s*)(- VC3USERID: )(.)(.*)(.)'
+    replace: '\1- VC3USERID: "{{ vc3id.stdout }}"'
+  when: vc3id.changed
+  register: configid_update
+
+- debug:
+    msg: "Template update: {{ configid_update }}"
+
+- name: start reana-cluster
+  shell: |
+    source /etc/profile.d/kubernetes.sh
+    source /usr/local/reana/bin/activate
+    reana-cluster -f /usr/local/reana/reana-cluster-vc3.yaml init
+  register: addr
+
+- debug:
+    msg: "Reana config: {{ addr }}"
+
+- name: Setup reana-cluster environment
+  shell: |
+    source /etc/profile.d/kubernetes.sh
+    source /usr/local/reana/bin/activate
+    wait_reana(){
+      local max_retries=20
+      count=0
+      until [ $count -ge $max_retries ]
+      do
+          if reana-cluster status > /dev/null 2>&1; then
+              break
+          fi
+          ((count++))
+          sleep 15
+      done
+      if [ $count -ge $max_retries ]; then
+          echo "Reana did not succeed"
+          return 1
+      else
+          sleep 2
+          reana-cluster env --include-admin-token > /etc/profile.d/reana.sh
+          return 0
+      fi
+    }
+    wait_reana
+
+- name: Source REANA virtual environment by default
+  lineinfile:
+    path: "~{{ item.key }}/.bashrc"
+    state: present
+    insertafter: EOF
+    line: 'source /usr/local/reana/bin/activate'
+  with_dict: "{{ production_keys }}"

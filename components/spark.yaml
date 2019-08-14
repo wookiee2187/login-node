@@ -1,0 +1,65 @@
+- set_fact:
+    builder_headnode_options: "{{ builder_headnode_options | default('--require noop') }} --require python --require python-pip --require spark-xrootd"
+
+- set_fact:
+    spark_port: 7077
+
+- set_fact:
+    spark_webui_port: 9080
+
+- name: create spark config
+  copy:
+      dest: "/etc/vc3/vc3-spark.conf"
+      owner: root
+      group: wheel
+      mode: 0644
+      content: |
+          spark.driver.host={{ headnode_ip }}
+          spark.driver.port=9044
+          spark.blockManager.port=9045
+          spark.files.useFetchCache=false
+          spark.ui.reverseProxy=true
+          spark.authenticate=true
+          spark.authenticate.secret={{ lookup('password', '/dev/null length=64') }}
+          spark.hadoop.fs.s3a.endpoint={{ headnode_ip }}:{{ s3_port }}
+          spark.hadoop.fs.s3a.connection.ssl.enabled=false
+          spark.hadoop.fs.s3a.impl=org.apache.hadoop.fs.s3a.S3AFileSystem
+          spark.hadoop.fs.s3a.access.key={{ s3_accesskey }}
+          spark.hadoop.fs.s3a.secret.key={{ s3_secretkey }}
+
+- name: fetch spark config
+  fetch:
+    src:  /etc/vc3/vc3-spark.conf
+    dest: "{{ shared_secret_file }}"
+    flat: yes
+
+- name: create spark submit script
+  copy:
+      dest: /bin/vc3-spark-submit
+      owner: root
+      group: wheel
+      mode: 0755
+      content: |
+          #! /bin/sh
+          spark-submit --properties-file /etc/vc3/vc3-spark.conf --master "spark://{{ headnode_ip }}:{{ spark_port }}" "$@"
+
+- name: create spark config
+  template:
+    src: ../templates/spark.env
+    dest: /etc/default/spark
+    owner: root
+    group: root
+    mode: 0644
+
+- name: create spark service file
+  template:
+    src: ../templates/minio.service
+    dest: /etc/systemd/system/minio.service
+    owner: root
+    group: root
+    mode: 0644
+
+- name: Start spark
+  shell: nohup /bin/vc3-builder --var TERM=linux --var "SPARK_MASTER_HOST={{ headnode_ip }}" --var "SPARK_MASTER_PORT={{ spark_port }}" --var "SPARK_MASTER_WEBUI_PORT=9080" --install /opt/vc3/root --distfiles /opt/vc3/distfiles --home /opt/vc3/home --require spark-xrootd -- '$VC3_ROOT_SPARK/sbin/start-master.sh' --properties-file /etc/vc3/vc3-spark.conf > /tmp/log 2>&1 &
+
+

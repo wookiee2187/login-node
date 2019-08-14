@@ -1,0 +1,16 @@
+---
+- name: Create vc3 config directory
+  file:
+    path: /etc/vc3
+    state: directory
+    owner: root
+    group: root
+    mode: 0755
+
+- name: Copy vc3 user <-> globus id mapping
+  copy:
+    content: "{{ globusvc3_mapfile | to_nice_json }}"
+    dest:  /etc/vc3/vc3-mapfile.json
+    owner: root
+    group: root
+    mode: 0644

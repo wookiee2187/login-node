@@ -1,0 +1,28 @@
+[Unit]
+Description=spark
+Wants=network-online.target
+After=network-online.target
+AssertFileIsExecutable=/bin/vc3-builder
+
+[Service]
+User=root
+Group=wheel
+
+EnvironmentFile=-/etc/default/spark
+
+ExecStart=/bin/vc3-builder --revar "SPARK_.*" --install /opt/vc3/root --distfiles /opt/vc3/distfiles --home /opt/vc3/home --require spark-xrootd -- '$VC3_ROOT_SPARK/sbin/start-master.sh' --properties-file /etc/vc3/vc3-spark.conf 
+
+# Let systemd restart this service always
+Restart=always
+
+# Specifies the maximum file descriptor number that can be opened by this process
+LimitNOFILE=65536
+
+# Disable timeout logic and wait until process is stopped
+TimeoutStopSec=infinity
+SendSIGKILL=no
+
+[Install]
+WantedBy=multi-user.target
+
+# Built for ${project.name}-${project.version} (${project.name})

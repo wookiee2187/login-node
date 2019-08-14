@@ -1,0 +1,7 @@
+- name: Create vc3 config directory
+  file:
+    path: /etc/vc3
+    state: directory
+    owner: root
+    group: root
+    mode: 0755

@@ -81,7 +81,7 @@ class HandleHeadNodes(VC3Task):
 	    node = v1.read_node(pod.spec.node_name)
 	    IP = node.status.addresses[0].address
 	    conf1 = api_instance.read_namespaced_config_map(name = "new-config", namespace = "default")
-            conf2 = api_instance.read_namespaced_config_map(name = "temcon"+ "-" + request.name, namespace = "default")
+            conf2 = api_instance.read_namespaced_config_map(name = "temcon", namespace = "default")
 	    self.log.info('About to return')
 	    self.log.info(IP)
 	    self.log.info(port)
@@ -105,7 +105,7 @@ class HandleHeadNodes(VC3Task):
 	    self.log.info('checking if it exists')
 	    self.log.info(v1.list_pod_for_all_namespaces)
             # checks if deployment, service, configmap already created - To do add checks for service + configmaps
-            check = k8s_api.read_namespaced_deployment_status(name= "login-node-n" + "-" + request.name, namespace ="default")
+            check = k8s_api.read_namespaced_deployment_status(name= "login-node-n", namespace ="default")
             self.log.info("pod already exists")
         except Exception:
             #pass
@@ -118,8 +118,14 @@ class HandleHeadNodes(VC3Task):
             temp_up = template.render(config_data)
             name = 'temcon'+ '-' + request.name
        	    namespace = 'default'
+	    config_data2 = yaml.load(open('/etc/cvmfs_vals.yaml'),Loader=yaml.FullLoader)
+	    self.log.info('Loaded vals2 file')
+	    env2 = Environment(loader = FileSystemLoader('./templates'))
+            template2 = env2.get_template('cvmfs_default_local.j2')
+	    temp_up2 = template2.render(config_data2)
+	    #To do - templates for minio, hadoop, spark, motd 
             body = kubernetes.client.V1ConfigMap()
-            body.data = dict([("condor_config.local" ,temp_up)])
+            body.data = {"condor_config.local":temp_up,"/etc/cvmfs/default.local": temp_up2}
             body.metadata = kubernetes.client.V1ObjectMeta()
             body.metadata.name = name
             configuration = kubernetes.client.Configuration()
@@ -169,9 +175,7 @@ class HandleHeadNodes(VC3Task):
             self.log.info(string_to_append)
 	    i = i + 1
             subprocess.call(['cp', '/tmp/tconfig.yaml', '/tmp/tconfig.yaml-editable.yaml'])
-#	    subprocess.call(['sudo','cp', '/tmp/tconfig.yaml', 'tconfig.yaml'])
 	    self.log.info("MOVED TO TMP")
-#	    subprocess.call(['chmod', '0770', 'tconfig.yaml'])
             with open("/tmp/tconfig.yaml-editable.yaml", "a") as myfile:
     	        myfile.write(string_to_append)
 	return attributes

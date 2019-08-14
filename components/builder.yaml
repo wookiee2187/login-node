@@ -1,0 +1,56 @@
+---
+- name: Install vc3-builder
+  copy:
+    src:  /bin/vc3-builder
+    dest: /bin/vc3-builder
+    mode: 0755
+
+- name: Install vc3 environments
+  shell: /bin/vc3-builder --var TERM=linux --install /opt/vc3/root --distfiles /opt/vc3/distfiles --home /opt/vc3/home  --env-to /opt/vc3/home/vc3-environments {{ builder_headnode_options | default('--require noop') }} {{ builder_options | default('--require noop') }}
+
+- name: Find vc3 python paths
+  find:
+    paths: /opt/vc3/home/.local/lib
+    recurse: no
+    patterns: 'python*'
+    file_type: directory
+  register: find_pythonvers
+
+- name: Set vc3 python paths
+  lineinfile:
+    path: "/usr/lib/{{ item.path | basename }}/site-packages/vc3.pth"
+    line: "{{ item.path }}/site-packages"
+    create: yes
+  with_items: "{{ find_pythonvers.files }}"
+
+- name: Reinsert standard system python paths
+  shell: |
+    for path in $(find /opt/vc3/root -type d -name "site-packages"); do
+        pythonver=$(echo "${path}" | sed -n 's/.*\(python[0-9].[0-9]*\).*/\1/p')
+        echo "/opt/vc3/home/.local/lib/${pythonver}/site-packages" > "${path}/system_${pythonver}.pth"
+        echo "/usr/lib64/$pythonver" >> "${path}/system_${pythonver}.pth"
+        echo "/usr/lib/$pythonver/site-packages" >> "${path}/system_${pythonver}.pth"
+        echo "/usr/lib64/$pythonver/site-packages" >> "${path}/system_${pythonver}.pth"
+        echo "/usr/lib64/$pythonver/lib-dynload" >> "${path}/system_${pythonver}.pth"
+    done
+
+- name: Install vc3 profile
+  file:
+    src:  /opt/vc3/home/vc3-environments.env
+    dest: /etc/profile.d/vc3-environments.010.env.sh
+    state: link
+
+- name: make vc3 python env world readable
+  command: "{{ item }}"
+  with_items:
+    - find     /opt/vc3/home/.local       -type d   -exec chmod 0755 '{}' ';'
+    - find     /opt/vc3/home/.local       -type f   -exec chmod 0644 '{}' ';'
+    - find     /opt/vc3/home/.local/bin   -type f   -exec chmod 0755 '{}' ';'
+  ignore_errors: yes
+
+- name: Install vc3 prologues
+  file:
+    src:  /opt/vc3/home/vc3-environments.prologue
+    dest: /etc/profile.d/vc3-environments.020.prologue.sh
+    state: link
+

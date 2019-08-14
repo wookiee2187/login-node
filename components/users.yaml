@@ -1,0 +1,32 @@
+---
+- name: Make sure we have a 'wheel' group
+  group:
+    name: wheel
+    state: present
+
+- name: Allow 'wheel' group to have passwordless sudo
+  lineinfile:
+    dest: /etc/sudoers
+    state: present
+    regexp: '^%wheel'
+    line: '%wheel ALL=(ALL) NOPASSWD: ALL'
+    validate: 'visudo -cf %s'
+
+- name: Add VC3 users
+  user:
+    name: "{{ item.key }}"
+    comment: "{{ item.key }}"
+    state: present
+  with_dict: "{{ production_keys }}"
+
+- name: Add VC3 user keys
+  authorized_key:
+    user: "{{ item.key }}"
+    state: present
+    key: "{{ item.value }}"
+  with_dict: "{{ production_keys }}"
+
+- name: request owner is added to the weel group
+  user: name={{ request_owner }} groups=wheel append=yes state=present
+
+
