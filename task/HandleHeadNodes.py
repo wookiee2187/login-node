@@ -84,7 +84,24 @@ class HandleHeadNodes(VC3Task):
 	except Exception:
             self.log.info("Login pod does not exist")
             return None
-
+    def template(self):
+	config_data = yaml.load(open('/usr/lib/python2.7/site-packages/vc3master/plugins/task/vals.yaml'),Loader=yaml.FullLoader)
+	env = Environment(loader = FileSystemLoader('./templates'), trim_blocks=True, lstrip_blocks=True)
+        template = env.get_template('condor_config.local.j2')
+        temp_up = template.render(config_data)
+        config_data2 = yaml.load(open('/etc/cvmfs_vals.yaml'),Loader=yaml.FullLoader)
+        template2 = env.get_template('cvmfs_default_local.j2')
+        temp_up2 = template2.render(config_data2)
+        config_data3 = yaml.load(open('/etc/minio'),Loader=yaml.FullLoader)
+        template3 = env.get_template('minio.env')
+        temp_up3 = template3.render(config_data3)
+        config_data4 = yaml.load(open('/etc/minio'),Loader=yaml.FullLoader)
+        template4 = env.get_template('core-site.xml.j2')
+        temp_up4 = template4.render(config_data4)
+        config_data5 = yaml.load(open('/etc/spark'),Loader=yaml.FullLoader)
+        template5 = env.get_template('spark.env')
+        temp_up5 = template5.render(config_data5)
+	return temp_up, temp_up2, temp_up3, temp_up4, temp_up5
     global login_create
     def login_create(self, request):
 	self.log.info('Starting login_create')
@@ -102,33 +119,9 @@ class HandleHeadNodes(VC3Task):
             self.log.info("pod already exists")
         except Exception:
             # rendering template and creating configmap
-            config_data = yaml.load(open('/usr/lib/python2.7/site-packages/vc3master/plugins/task/vals.yaml'),Loader=yaml.FullLoader)
-	    self.log.info('Loaded vals file')
-            env = Environment(loader = FileSystemLoader('./templates'), trim_blocks=True, lstrip_blocks=True)
-       	    template = env.get_template('condor_config.local.j2')
-            temp_up = template.render(config_data)
+ 	    temp_up, temp_up2, temp_up3, temp_up4, temp_up5 = self.template(self)
             name = 'temcon'+ '-' + request.name
-       	    namespace = 'default'
-	    config_data2 = yaml.load(open('/etc/cvmfs_vals.yaml'),Loader=yaml.FullLoader)
-	    self.log.info('Loaded vals2 file')
-	    env2 = Environment(loader = FileSystemLoader('./templates'))
-            template2 = env2.get_template('cvmfs_default_local.j2')
-	    temp_up2 = template2.render(config_data2)
-	    config_data3 = yaml.load(open('/etc/minio'),Loader=yaml.FullLoader)
-            self.log.info('Loaded vals3 file')
-            env3 = Environment(loader = FileSystemLoader('./templates'))
-            template3 = env3.get_template('minio.env')
-            temp_up3 = template3.render(config_data3)
-            config_data4 = yaml.load(open('/etc/minio'),Loader=yaml.FullLoader)
-            self.log.info('Loaded vals3 file')
-            env4 = Environment(loader = FileSystemLoader('./templates'))
-            template4 = env4.get_template('core-site.xml.j2')
-            temp_up4 = template4.render(config_data4)
-            config_data5 = yaml.load(open('/etc/spark'),Loader=yaml.FullLoader)
-            self.log.info('Loaded vals5 file')
-            env5 = Environment(loader = FileSystemLoader('./templates'))
-            template5 = env5.get_template('spark.env')
-            temp_up5 = template5.render(config_data5)
+            namespace = 'default'
             body = kubernetes.client.V1ConfigMap()
             body.data = {"condor_config.local":temp_up,"/etc/cvmfs/default.local": temp_up2, "/etc/default/minio" : temp_up3, "/opt/vc3/root/hadoop-core-site.xml" : temp_up4, "/etc/spark/vc3-spark.conf" : temp_up5}
             body.metadata = kubernetes.client.V1ObjectMeta()
@@ -280,9 +273,7 @@ class HandleHeadNodes(VC3Task):
         	configuration = kubernetes.client.Configuration()
         	api_instance = kubernetes.client.AppsV1Api(kubernetes.client.ApiClient(configuration))
 	        api_instance2 = kubernetes.client.CoreV1Api(kubernetes.client.ApiClient(configuration))
-		self.log.info('Entering login info')
                 login = login_info(self, request)
-		self.log.info('Leaving login info')
                 #self.log.debug(Teminating headnode %s for request %s, request.headnode, request.name)
 		# To do - make function
                 api_instance.delete_namespaced_deployment(login[2].metadata.name, "default")
