@@ -22,4 +22,7 @@ After it finishes running you can view the logs by running $docker logs -f vc3. 
 
 You can check that the request terminate command works by using $docker exec -i vc3 vc3-client request-terminate --request-name [request_name]. The logs should indicate the success of this operation, and sshing into the login pod should no longer work. 
 
+# Main changes in current version
+The main changes in the current version are in the file HandleHeadNodes.py. Previously, the code used an OpenStack backend with servers to create the nodes in the virtual cluster. In the current version, 'login pods' are created which are dynamically provisioned on a Kubernetes backend. Instead of the HeadNode states matching up to the server states, they now match up to the pod states. The HeadNode states now are booting->pending->running, instead of booting->initializing->running. 
 
+The current code also does not use the ansible playbook code for managing configurations. Configurations are done in login_create, with the configmap temcon-[request_name]. The configurations are set for cvmfs, spark, minio, and reana. 
