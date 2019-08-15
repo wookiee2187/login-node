@@ -16,9 +16,8 @@ import time
 import pprint
 import subprocess, yaml
 
-#from novaclient import client as novaclient
 from kubernetes import client, config, utils
-import kubernetes.client
+import kubernetes.client 
 from kubernetes.client.rest import ApiException
 from jinja2 import Environment, FileSystemLoader
 
@@ -58,23 +57,19 @@ class HandleHeadNodes(VC3Task):
 
     global login_info
     def login_info(self, request):
-	#outputs login pod info with node IP, port, deployment, service, configmap1, configmap2 
-	#check if pod exists with k8s python api 
-        self.log.info('loading cluster config')
+	'''
+	Outputs login pod info with node IP, port, deployment, service, configmap1, configmap2 
+	'''
         config.load_kube_config(config_file = '/etc/kubernetes/admin.conf')
         v1 = client.CoreV1Api()
         k8s_client = client.ApiClient()
         k8s_api = client.ExtensionsV1beta1Api(k8s_client)
         configuration = kubernetes.client.Configuration()
         api_instance = kubernetes.client.CoreV1Api(kubernetes.client.ApiClient(configuration))
-	self.log.info('Done loading stuff')
-        self.log.info('calling add keys')
         add_keys_to_pod(self, request)
 	try:
 	    dep = k8s_api.read_namespaced_deployment(name = "login-node-n", namespace = "default")
-	    self.log.info('Got deployment')
             service = v1.read_namespaced_service(name = "login-node-service", namespace = "default")
-	    self.log.info('Got service')
             port = service.spec.ports[0].node_port
 	    list_pods = v1.list_namespaced_pod("default") # To do - change to specific namespace
 	    pod = list_pods.items[0]
@@ -87,7 +82,7 @@ class HandleHeadNodes(VC3Task):
 	    self.log.info(port)
             return [IP, port, dep, service, conf1, conf2]
 	except Exception:
-            self.log.info("pod does not exist")
+            self.log.info("Login pod does not exist")
             return None
 
     global login_create
@@ -99,17 +94,13 @@ class HandleHeadNodes(VC3Task):
         k8s_api = client.ExtensionsV1beta1Api(k8s_client)
         configuration = kubernetes.client.Configuration()
         api_instance = kubernetes.client.CoreV1Api(kubernetes.client.ApiClient(configuration))
-	self.log.info('calling add keys')
 	add_keys_to_pod(self, request)
         try:
-	    self.log.info('checking if it exists')
 	    self.log.info(v1.list_pod_for_all_namespaces)
             # checks if deployment, service, configmap already created - To do add checks for service + configmaps
             check = k8s_api.read_namespaced_deployment_status(name= "login-node-n", namespace ="default")
             self.log.info("pod already exists")
         except Exception:
-            #pass
-	    self.log.info('The exception')
             # rendering template and creating configmap
             config_data = yaml.load(open('/usr/lib/python2.7/site-packages/vc3master/plugins/task/vals.yaml'),Loader=yaml.FullLoader)
 	    self.log.info('Loaded vals file')
@@ -123,7 +114,6 @@ class HandleHeadNodes(VC3Task):
 	    env2 = Environment(loader = FileSystemLoader('./templates'))
             template2 = env2.get_template('cvmfs_default_local.j2')
 	    temp_up2 = template2.render(config_data2)
-	    #To do - templates for minio, hadoop, spark, motd 
 	    config_data3 = yaml.load(open('/etc/minio'),Loader=yaml.FullLoader)
             self.log.info('Loaded vals3 file')
             env3 = Environment(loader = FileSystemLoader('./templates'))
@@ -149,7 +139,6 @@ class HandleHeadNodes(VC3Task):
             api_response = api_instance.create_namespaced_config_map(namespace, body)
         except ApiException as e:
             print("Exception when calling CoreV1Api->create_namespaced_config_map: %s\n" % e)
-	# To do - change name to have the deployment name as the name + request.name
         utils.create_from_yaml(k8s_client, "deployNservice.yaml")
         utils.create_from_yaml(k8s_client, "/tmp/tconfig.yaml-editable.yaml")
 	return 1
@@ -167,12 +156,11 @@ class HandleHeadNodes(VC3Task):
             k8s_api = client.ExtensionsV1beta1Api(k8s_client)
             deps = k8s_api.read_namespaced_deployment_status(name= "login-node-n", namespace ="default")
         self.log.info("LOGIN POD CREATED")
-
         deps.metadata.name = deps.metadata.name + "-" + request.name
         service = v1.read_namespaced_service(name = "login-node-service", namespace = "default")
-        service.metadata.name = service.metadata.name + "-" + request.name
+        #service.metadata.name = service.metadata.name + "-" + request.name
         config1 = api_instance.read_namespaced_config_map(name = "new-config", namespace = "default")
-        config1.metadata.name = config1.metadata.name + "-" + request.name
+        #config1.metadata.name = config1.metadata.name + "-" + request.name
         return login_info(self, request)
     
     global add_keys_to_pod
@@ -331,29 +319,18 @@ class HandleHeadNodes(VC3Task):
             return ('pending', 'Headnode is being configured.')
 
     def state_pending(self, request, headnode):
-        #self.initialize_server(request, headnode)
 	login_pending(self,request)
         (next_state, state_reason) = ('running', 'Headnode is ready to be used.') 
 
-	#self.check_if_done_init(request, headnode)
-
-	#if self.check_if_online(request, headnode):
-        #self.last_contact_times[request.name] = time.time()
-
         if next_state == 'running':
-            self.log.info('Done initializing server %s for request %s', request.headnode, request.name)
+            self.log.info('Done initializing pod %s for request %s', request.headnode, request.name)
             #self.report_running_server(request, headnode)
         elif next_state != 'failure':
             self.log.debug('Waiting for headnode for %s to finish initialization.', request.name)
         return (next_state, state_reason)
 
-
     def state_running(self, request, headnode):
-        #if self.check_if_online(request, headnode):
-         #   self.last_contact_times[request.name] = time.time()
-
         return ('running', 'Headnode is ready to be used.')
-
 
     def check_if_online(self, request, headnode):
         if headnode.app_host is None:
@@ -404,7 +381,7 @@ class HandleHeadNodes(VC3Task):
             return (next_state, reason)
 
     def boot_server(self, request, headnode):
-	self.log.info('Starting boot server')
+	self.log.info('Starting boot')
         try:
             login = login_info(self, request)
 	    if login:
@@ -421,54 +398,6 @@ class HandleHeadNodes(VC3Task):
 	self.log.info('returning from boot server')
         return login
 
-
-    def initialize_server(self, request, headnode):
-
-        # if we already initialized this headnode
-        if self.initializers.has_key(request.name):
-            return
-
-        self.initializing_count[request.name] = self.initializing_count.get(request.name, 0) + 1
-
-        self.log.info("Trying to initialize headnode for request %s for the %d/%d time." % (request.name, self.initializing_count[request.name], self.node_max_initializing_count))
-
-        os.environ['ANSIBLE_HOST_KEY_CHECKING']='False'
-
-        extra_vars  = {}
-        extra_vars['request_name']       = request.name
-        extra_vars['request_owner']      = request.owner
-        extra_vars['headnode_ip']        = headnode.app_host
-        extra_vars['setup_user_name']    = self.node_user
-        extra_vars['production_keys']    = self.get_members_keys(request)
-        extra_vars['builder_options']    = self.get_builder_options(request)
-        extra_vars['shared_secret_file'] = self.secret_auth_filename(request)
-        extra_vars['globusvc3_mapfile']  = self.get_globusvc3_mapfile(request)
-
-        app_type = headnode.app_type
-        if app_type is not None:
-            playbook_name = "login-" + app_type + ".yaml"
-            self.ansible_playbook = os.path.join(self.ansible_path, playbook_name)
-
-        self.log.debug("playbook path : %s", self.ansible_playbook)
-
-        # passing extra-vars as a command line argument for now. That won't
-        # scale well, we want to write those vars to a file instead.
-        pipe = subprocess.Popen(
-                ['ansible-playbook',
-                    self.ansible_playbook,
-                    '--extra-vars',
-                    json.dumps(extra_vars),
-                    '--key-file',
-                    'private_key',
-                    '--inventory',
-                    headnode.app_host + ',',
-                    ],
-                cwd = self.ansible_path,
-                stdout=self.ansible_debug,
-                stderr=self.ansible_debug,
-                )  
-        self.initializers[request.name] = pipe
-        self.last_contact_times[request.name] = time.time()
 
     def check_if_done(self, request, headnode):
             return ('running', 'Headnode is ready to be used.')
