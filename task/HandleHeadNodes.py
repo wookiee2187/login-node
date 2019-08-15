@@ -66,7 +66,6 @@ class HandleHeadNodes(VC3Task):
         k8s_api = client.ExtensionsV1beta1Api(k8s_client)
         configuration = kubernetes.client.Configuration()
         api_instance = kubernetes.client.CoreV1Api(kubernetes.client.ApiClient(configuration))
-        add_keys_to_pod(self, request)
 	try:
 	    dep = k8s_api.read_namespaced_deployment(name = "login-node-n", namespace = "default")
             service = v1.read_namespaced_service(name = "login-node-service", namespace = "default")
@@ -84,6 +83,7 @@ class HandleHeadNodes(VC3Task):
 	except Exception:
             self.log.info("Login pod does not exist")
             return None
+
     def template(self):
 	config_data = yaml.load(open('/usr/lib/python2.7/site-packages/vc3master/plugins/task/vals.yaml'),Loader=yaml.FullLoader)
 	env = Environment(loader = FileSystemLoader('./templates'), trim_blocks=True, lstrip_blocks=True)
@@ -102,7 +102,7 @@ class HandleHeadNodes(VC3Task):
         template5 = env.get_template('spark.env')
         temp_up5 = template5.render(config_data5)
 	return temp_up, temp_up2, temp_up3, temp_up4, temp_up5
-    global login_create
+
     def login_create(self, request):
 	self.log.info('Starting login_create')
         config.load_kube_config(config_file = '/etc/kubernetes/admin.conf')
@@ -111,7 +111,7 @@ class HandleHeadNodes(VC3Task):
         k8s_api = client.ExtensionsV1beta1Api(k8s_client)
         configuration = kubernetes.client.Configuration()
         api_instance = kubernetes.client.CoreV1Api(kubernetes.client.ApiClient(configuration))
-	add_keys_to_pod(self, request)
+	self.add_keys_to_pod(request)
         try:
 	    self.log.info(v1.list_pod_for_all_namespaces)
             # checks if deployment, service, configmap already created - To do add checks for service + configmaps
@@ -119,7 +119,7 @@ class HandleHeadNodes(VC3Task):
             self.log.info("pod already exists")
         except Exception:
             # rendering template and creating configmap
- 	    temp_up, temp_up2, temp_up3, temp_up4, temp_up5 = self.template(self)
+ 	    temp_up, temp_up2, temp_up3, temp_up4, temp_up5 = self.template()
             name = 'temcon'+ '-' + request.name
             namespace = 'default'
             body = kubernetes.client.V1ConfigMap()
@@ -128,15 +128,14 @@ class HandleHeadNodes(VC3Task):
             body.metadata.name = name
             configuration = kubernetes.client.Configuration()
             api_instance = kubernetes.client.CoreV1Api(kubernetes.client.ApiClient(configuration)) 
-        try:
-            api_response = api_instance.create_namespaced_config_map(namespace, body)
-        except ApiException as e:
-            print("Exception when calling CoreV1Api->create_namespaced_config_map: %s\n" % e)
-        utils.create_from_yaml(k8s_client, "deployNservice.yaml")
-        utils.create_from_yaml(k8s_client, "/tmp/tconfig.yaml-editable.yaml")
+            try:
+            	api_response = api_instance.create_namespaced_config_map(namespace, body)
+            except ApiException as e:
+            	print("Exception when calling CoreV1Api->create_namespaced_config_map: %s\n" % e)
+            utils.create_from_yaml(k8s_client, "deployNservice.yaml")
+            utils.create_from_yaml(k8s_client, "/tmp/tconfig.yaml-editable.yaml")
 	return 1
 
-    global login_pending 
     def login_pending(self, request): 
 	config.load_kube_config(config_file = '/etc/kubernetes/admin.conf')
         v1 = client.CoreV1Api()
@@ -156,7 +155,6 @@ class HandleHeadNodes(VC3Task):
         #config1.metadata.name = config1.metadata.name + "-" + request.name
         return login_info(self, request)
     
-    global add_keys_to_pod
     def add_keys_to_pod(self, request):
         members    = self.get_members_names(request)
 	attributes = {}
@@ -273,9 +271,8 @@ class HandleHeadNodes(VC3Task):
         	configuration = kubernetes.client.Configuration()
         	api_instance = kubernetes.client.AppsV1Api(kubernetes.client.ApiClient(configuration))
 	        api_instance2 = kubernetes.client.CoreV1Api(kubernetes.client.ApiClient(configuration))
-                login = login_info(self, request)
+                login = self.login_info(request)
                 #self.log.debug(Teminating headnode %s for request %s, request.headnode, request.name)
-		# To do - make function
                 api_instance.delete_namespaced_deployment(login[2].metadata.name, "default")
                 api_instance2.delete_namespaced_service(login[3].metadata.name, "default")
                 api_instance2.delete_namespaced_config_map(login[4].metadata.name, "default")
@@ -289,7 +286,7 @@ class HandleHeadNodes(VC3Task):
     def state_new(self, request, headnode):
         self.log.info('Creating new nodeset %s for request %s', request.headnode, request.name)
         try:
-            login = self.boot_server(request, headnode)
+            login = self.boot_pod(request, headnode)
             if not login:
                 self.log.warning('Could not boot headnode for request %s', request.name)
                 return ('failure', 'Could not boot headnode.', request.name)
@@ -310,7 +307,7 @@ class HandleHeadNodes(VC3Task):
             return ('pending', 'Headnode is being configured.')
 
     def state_pending(self, request, headnode):
-	login_pending(self,request)
+	self.login_pending(request)
         (next_state, state_reason) = ('running', 'Headnode is ready to be used.') 
 
         if next_state == 'running':
@@ -371,10 +368,10 @@ class HandleHeadNodes(VC3Task):
         else:
             return (next_state, reason)
 
-    def boot_server(self, request, headnode):
+    def boot_pod(self, request, headnode):
 	self.log.info('Starting boot')
         try:
-            login = login_info(self, request)
+            login = login_info(self,request)
 	    if login:
             	self.log.info('Found headnode at %s for request %s', request.headnode, request.name)
             	return login
@@ -382,10 +379,10 @@ class HandleHeadNodes(VC3Task):
             pass
 
         self.log.info('Booting new headnode for request %s...', request.name)
-        login = login_create(self, request)
+        login = self.login_create(request)
 	self.log.info('past login create')
 	if login == None:
-		self.log.info('login is NUll')
+		self.log.info('login is null')
 	self.log.info('returning from boot server')
         return login
 
@@ -500,7 +497,7 @@ class HandleHeadNodes(VC3Task):
         return app_type
 
     def __get_ip(self, request):
-        login = login_info(self, request)
+        login = login_info(self,request)
         if login[0] == None:
                 self.log.debug("Headnode for request %s is not active yet.", request.name)
                 return None
