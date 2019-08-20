@@ -67,15 +67,15 @@ class HandleHeadNodes(VC3Task):
         configuration = kubernetes.client.Configuration()
         api_instance = kubernetes.client.CoreV1Api(kubernetes.client.ApiClient(configuration))
 	try:
-	    dep = k8s_api.read_namespaced_deployment(name = "login-node-n", namespace = "default")
-            service = v1.read_namespaced_service(name = "login-node-service", namespace = "default")
+	    dep = k8s_api.read_namespaced_deployment(name = "login-node-n-" + str(request.name), namespace = "default")
+            service = v1.read_namespaced_service(name = "login-node-service-" + str(request.name), namespace = "default")
             port = service.spec.ports[0].node_port
 	    list_pods = v1.list_namespaced_pod("default") # To do - change to specific namespace
 	    pod = list_pods.items[0]
 	    node = v1.read_node(pod.spec.node_name)
 	    IP = node.status.addresses[0].address
-	    conf1 = api_instance.read_namespaced_config_map(name = "new-config", namespace = "default")
-            conf2 = api_instance.read_namespaced_config_map(name = "temcon", namespace = "default")
+	    conf1 = api_instance.read_namespaced_config_map(name = "new-config-" + request.name, namespace = "default")
+            conf2 = api_instance.read_namespaced_config_map(name = "temcon-" + request.name, namespace = "default")
 	    self.log.info('About to return')
 	    self.log.info(IP)
 	    self.log.info(port)
@@ -115,15 +115,15 @@ class HandleHeadNodes(VC3Task):
         try:
 	    self.log.info(v1.list_pod_for_all_namespaces)
             # checks if deployment, service, configmap already created - To do add checks for service + configmaps
-            check = k8s_api.read_namespaced_deployment_status(name= "login-node-n", namespace ="default")
+            check = k8s_api.read_namespaced_deployment_status(name= "login-node-n-" + str(request.name), namespace ="default")
             self.log.info("pod already exists")
         except Exception:
             # rendering template and creating configmap
  	    temp_up, temp_up2, temp_up3, temp_up4, temp_up5 = self.template()
-            name = 'temcon'+ '-' + request.name
+            name = 'temcon-' + str(request.name)
             namespace = 'default'
             body = kubernetes.client.V1ConfigMap()
-            body.data = {"condor_config.local":temp_up,"/etc/cvmfs/default.local": temp_up2, "/etc/default/minio" : temp_up3, "/opt/vc3/root/hadoop-core-site.xml" : temp_up4, "/etc/spark/vc3-spark.conf" : temp_up5}
+            body.data = {"condor_config.local":str(temp_up)}
             body.metadata = kubernetes.client.V1ObjectMeta()
             body.metadata.name = name
             configuration = kubernetes.client.Configuration()
@@ -132,9 +132,68 @@ class HandleHeadNodes(VC3Task):
             	api_response = api_instance.create_namespaced_config_map(namespace, body)
             except ApiException as e:
             	print("Exception when calling CoreV1Api->create_namespaced_config_map: %s\n" % e)
-            utils.create_from_yaml(k8s_client, "deployNservice.yaml")
-            utils.create_from_yaml(k8s_client, "/tmp/tconfig.yaml-editable.yaml")
+	    self.log.info('CREATING DEPLOYMENT')
+	    self.create_dep(request)
+	    self.create_service(request)
+	    self.create_conf_users(request)
+            #utils.create_from_yaml(k8s_client, "deployNservice.yaml")
+            #utils.create_from_yaml(k8s_client, "/tmp/tconfig.yaml-editable.yaml")
 	return 1
+
+    def create_dep(self, request):
+        config.load_kube_config(config_file = '/etc/kubernetes/admin.conf')
+        pp = pprint.PrettyPrinter(indent =4)
+        configuration = kubernetes.client.Configuration()
+        api_instance = kubernetes.client.AppsV1Api(kubernetes.client.ApiClient(configuration))
+        core_v1_api = client.CoreV1Api()
+        namespace = 'default'
+        body = kubernetes.client.V1Deployment() # V1Deployment | 
+        body.metadata = kubernetes.client.V1ObjectMeta()
+        body.metadata.name = 'login-node-n-' + str(request.name)
+        body.metadata.labels = {'app':'login-node-n-' + str(request.name)}
+        conf_list = []
+        conf_list.append(kubernetes.client.V1VolumeMount(name = 'config-vol', mount_path = '/root/tconfig-file.conf',sub_path = 'tconfig-file.conf'))
+        conf2_list = []
+        volume0 = kubernetes.client.V1Volume(name = 'config-vol', config_map = kubernetes.client.V1ConfigMapVolumeSource(name = 'new-config-' + str(request.name), items = [kubernetes.client.V1KeyToPath(key = "tconfig-file.conf", path = "tconfig-file.conf")]))
+        volume1 = kubernetes.client.V1Volume(name = 'temcon-vol', config_map = kubernetes.client.V1ConfigMapVolumeSource(name = 'temcon-' + str(request.name), items = [kubernetes.client.V1KeyToPath(key = "condor_config.local", path = "condor_config.local")]))
+        print("volumes not")
+        env_list = []
+        env_list.append(kubernetes.client.V1EnvVar(name = 'PASSWDFILE', value = "root/tconfig-file.conf"))
+        vol_m_list = []
+        vol_m_list.append(kubernetes.client.V1VolumeMount(name = 'config-vol', mount_path = '/root/tconfig-file.conf',sub_path = 'tconfig-file.conf'))
+        vol_m_list.append(kubernetes.client.V1VolumeMount(name = 'temcon-vol', mount_path = '/etc/condor/config.d/condor_config.local', sub_path = 'condor_config.local'))
+        container0 = kubernetes.client.V1Container(name = 'new-container', env = env_list, image = 'nlingareddy/condor-login', volume_mounts = vol_m_list)
+        vol_list = []
+        vol_list.append(volume0)
+        vol_list.append(volume1)
+        cont_list = []
+        cont_list.append(container0)
+        body.spec = kubernetes.client.V1DeploymentSpec(replicas= 1, selector= kubernetes.client.V1LabelSelector(match_labels= {'app':'login-node-n-' + str(request.name)}) , template= kubernetes.client.V1PodTemplateSpec(metadata = kubernetes.client.V1ObjectMeta(labels = {'app':'login-node-n-' + str(request.name)}), spec = kubernetes.client.V1PodSpec(volumes= vol_list, containers = cont_list)))
+ 	try:
+            api_response = api_instance.create_namespaced_deployment(namespace="default", body=body)
+        except ApiException as e:
+            print("Exception when calling AppsV1Api->create_namespaced_deployment: %s\n" % e)
+
+    def create_service(self, request):
+        config.load_kube_config(config_file = '/etc/kubernetes/admin.conf')
+        core_v1_api = kubernetes.client.CoreV1Api()
+        serv_list = []
+        serv_list.append(kubernetes.client.V1ServicePort(port=22, protocol='TCP'))
+        body = kubernetes.client.V1Service(metadata= kubernetes.client.V1ObjectMeta(name = 'login-node-service-' + str(request.name)), spec = kubernetes.client.V1ServiceSpec(type='NodePort', selector={'app':'login-node-n-' + str(request.name)}, ports=serv_list))
+        try:
+            api_response = core_v1_api.create_namespaced_service(namespace="default", body=body)
+        except ApiException as e:
+            print("Exception when calling AppsV1Api->create_namespaced_service: %s\n" % e)	 
+
+    def create_conf_users(self, request):
+        config.load_kube_config(config_file = '/etc/kubernetes/admin.conf')
+        core_v1_api = kubernetes.client.CoreV1Api()
+	string_to_append = self.add_keys_to_pod(request)
+        bodyc = kubernetes.client.V1ConfigMap(api_version = 'v1', kind = 'ConfigMap', metadata = kubernetes.client.V1ObjectMeta(name = "new-config-" + str(request.name), namespace = "default"), data = {'tconfig-file.conf':'|+\nslateci:x:1000:1000::/home/slateci:/bin/bash:ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQClkGpJ1+B2qPc5gtoywRsKBTj2wO6CR0ywqKTvcdTdFnqnStYsCKD8SL14MwNCKHHk70jv1yeIyJRJD1ctfrrc7oaY5hj+zUZgavmo8pfnBiEsTPEVPmPocLdGfsH7NXuRuuTLk+3snBW7N3S22YVJytXKrFwLjigeA+SltquN6t3vHBepON8k2VKxNfZXROhiOI4vf7qW5/G8i75qJ4dWuGvAoh9dceYFwNcL1aZGPo/LVaHm0eb8/o2aNQuhAWfwSRz/7Lz9vjflaJAQWjV1P8GYCDdXfWnzD7tk6qWOoPR2iUgOckF+rJPMCfsMnbsu9OiNliftreOzFqL3q6TvXlDNz5brgOnIDCgFC20ZhNRhLhjC+PvdmIi5VVoY3NjHrKzMKT2tkGpI1WGr9Xl89pUQ7tw9QblmOWW0SHl9hwaG/uKrJz3zuDZcvr9eeMk8Qr5OK/3hDW0+/ddXTy1JU3QA7p/J42jA4Jfv6eW6jAbKTa99luAwQ76N3vodU30= nehalingareddy@Nehas-MacBook-Pro.local\n\nneha:x:1003:1003:/home/neha::/bin/bash:ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQClkGpJ1+B2qPc5gtoywRsKBTj2wO6CR0ywqKTvcdTdFnqnStYsCKD8SL14MwNCKHHk70jv1yeIyJRJD1ctfrrc7oaY5hj+zUZgavmo8pfnBiEsTPEVPmPocLdGfsH7NXuRuuTLk+3snBW7N3S22YVJytXKrFwLjigeA+SltquN6t3vHBepON8k2VKxNfZXROhiOI4vf7qW5/G8i75qJ4dWuGvAoh9dceYFwNcL1aZGPo/LVaHm0eb8/o2aNQuhAWfwSRz/7Lz9vjflaJAQWjV1P8GYCDdXfWnzD7tk6qWOoPR2iUgOckF+rJPMCfsMnbsu9OiNliftreOzFqL3q6TvXlDNz5brgOnIDCgFC20ZhNRhLhjC+PvdmIi5VVoY3NjHrKzMKT2tkGpI1WGr9Xl89pUQ7tw9QblmOWW0SHl9hwaG/uKrJz3zuDZcvr9eeMk8Qr5OK/3hDW0+/ddXTy1JU3QA7p/J42jA4Jfv6eW6jAbKTa99luAwQ76N3vodU30= nehalingareddy@Nehas-MacBook-Pro.local'+string_to_append})
+        try:
+            api_response = core_v1_api.create_namespaced_config_map(namespace="default", body = bodyc)
+        except ApiException as e:
+            print("Exception when calling CoreV1Api->create_namespaced_config_map: %s\n" % e)
 
     def login_pending(self, request): 
 	config.load_kube_config(config_file = '/etc/kubernetes/admin.conf')
@@ -143,16 +202,14 @@ class HandleHeadNodes(VC3Task):
         k8s_api = client.ExtensionsV1beta1Api(k8s_client)
         configuration = kubernetes.client.Configuration()
         api_instance = kubernetes.client.CoreV1Api(kubernetes.client.ApiClient(configuration))
-	deps = k8s_api.read_namespaced_deployment_status(name= "login-node-n", namespace ="default")
+	deps = k8s_api.read_namespaced_deployment_status(name= "login-node-n-" + str(request.name), namespace ="default")
 	while(deps.status.available_replicas != 1):
             k8s_api = client.ExtensionsV1beta1Api(k8s_client)
-            deps = k8s_api.read_namespaced_deployment_status(name= "login-node-n", namespace ="default")
+            deps = k8s_api.read_namespaced_deployment_status(name= "login-node-n-" + str(request.name), namespace ="default")
         self.log.info("LOGIN POD CREATED")
         deps.metadata.name = deps.metadata.name + "-" + request.name
-        service = v1.read_namespaced_service(name = "login-node-service", namespace = "default")
-        #service.metadata.name = service.metadata.name + "-" + request.name
-        config1 = api_instance.read_namespaced_config_map(name = "new-config", namespace = "default")
-        #config1.metadata.name = config1.metadata.name + "-" + request.name
+        service = v1.read_namespaced_service(name = "login-node-service-" + str(request.name), namespace = "default")
+        config1 = api_instance.read_namespaced_config_map(name = "new-config-" + str(request.name), namespace = "default")
         return login_info(self, request)
     
     def add_keys_to_pod(self, request):
@@ -172,7 +229,7 @@ class HandleHeadNodes(VC3Task):
 	    self.log.info("MOVED TO TMP")
             with open("/tmp/tconfig.yaml-editable.yaml", "a") as myfile:
     	        myfile.write(string_to_append)
-	return attributes
+	return string_to_append
 
     def runtask(self):
         self.log.info("Running task %s" % self.section)

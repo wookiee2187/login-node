@@ -41,21 +41,21 @@ def main():
         except ApiException as e:
             print("Exception when calling CoreV1Api->create_namespaced_config_map: %s\n" % e)
         #creating deployment, service, and configmap 
-        utils.create_from_yaml(k8s_client, "deployNservice.yaml")
-        utils.create_from_yaml(k8s_client, "tconfig.yaml")
+
+#        utils.create_from_yaml(k8s_client, "tconfig.yaml")
         # waits till deployment created
-        deps = k8s_api.read_namespaced_deployment_status(name = "login-node-n", namespace ="default")
-        while(deps.status.available_replicas != 1):
-            k8s_api = client.ExtensionsV1beta1Api(k8s_client)
-            deps = k8s_api.read_namespaced_deployment_status(name= "login-node-n", namespace ="default")
-        print("DEPLOYMENT CREATED")
-    dep = k8s_api.read_namespaced_deployment(name = "login-node-n", namespace = "default")
-    pp.pprint(dep)
-    serv = v1.read_namespaced_service(name = "login-node-service", namespace = "default")
-    pp.pprint(serv.spec.ports[0].node_port)
-    list_pods = v1.list_namespaced_pod("default")
-    pod = list_pods.items[0]
-    node = v1.read_node(pod.spec.node_name)
-    pp.pprint(node.status.addresses[0].address)
+ #       deps = k8s_api.read_namespaced_deployment_status(name = "login-node-n", namespace ="default")
+  #      while(deps.status.available_replicas != 1):
+   #         k8s_api = client.ExtensionsV1beta1Api(k8s_client)
+    #        deps = k8s_api.read_namespaced_deployment_status(name= "login-node-n", namespace ="default")
+     #   print("DEPLOYMENT CREATED")
+    #dep = k8s_api.read_namespaced_deployment(name = "login-node-n", namespace = "default")
+    #pp.pprint(dep)
+    #serv = v1.read_namespaced_service(name = "login-node-service", namespace = "default")
+    #pp.pprint(serv.spec.ports[0].node_port)
+    #list_pods = v1.list_namespaced_pod("default")
+    #pod = list_pods.items[0]
+    #node = v1.read_node(pod.spec.node_name)
+    #pp.pprint(node.status.addresses[0].address)
 if __name__ == '__main__':
     main()
