@@ -67,8 +67,8 @@ class HandleHeadNodes(VC3Task):
         configuration = kubernetes.client.Configuration()
         api_instance = kubernetes.client.CoreV1Api(kubernetes.client.ApiClient(configuration))
 	try:
-	    dep = k8s_api.read_namespaced_deployment(name = "login-node-n-" + str(request.name), namespace = "default")
-            service = v1.read_namespaced_service(name = "login-node-service-" + str(request.name), namespace = "default")
+	    dep = k8s_api.read_namespaced_deployment(name = "login-node-n-" + str(request.name), namespace = str(request.name))
+            service = v1.read_namespaced_service(name = "login-node-service-" + str(request.name), namespace = str(request.name))
             port = service.spec.ports[0].node_port
 	    list_pods = v1.list_namespaced_pod("default") # To do - change to specific namespace
 	    pod = list_pods.items[0]
